@@ -281,7 +281,7 @@ public class TestUserSuppliedPKTopology extends BaseTest {
     }
 
     @Test
-    public void testMultiplePKs() throws Exception {
+    public void testMultiplePKs() {
         VertexLabel personVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
                 "Person",
                 new LinkedHashMap<String, PropertyType>() {{
@@ -303,7 +303,7 @@ public class TestUserSuppliedPKTopology extends BaseTest {
                 new HashMap<String, PropertyType>() {{
                     put("uid1", PropertyType.varChar(100));
                 }},
-                ListOrderedSet.listOrderedSet(Arrays.asList("uid1"))
+                ListOrderedSet.listOrderedSet(Collections.singletonList("uid1"))
         );
         this.sqlgGraph.tx().commit();
 
