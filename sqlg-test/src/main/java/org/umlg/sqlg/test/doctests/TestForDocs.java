@@ -1,14 +1,21 @@
 package org.umlg.sqlg.test.doctests;
 
+import org.apache.commons.collections4.set.ListOrderedSet;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.Assert;
 import org.junit.Test;
+import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.RecordId;
+import org.umlg.sqlg.structure.SchemaTable;
+import org.umlg.sqlg.structure.topology.EdgeLabel;
+import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.test.BaseTest;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Date: 2014/12/14
@@ -18,6 +25,68 @@ import java.util.Map;
 public class TestForDocs extends BaseTest {
 
     @Test
+    public void testUserSuppliedIds() {
+        VertexLabel personVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+                "Person",
+                new LinkedHashMap<String, PropertyType>() {{
+                    put("name", PropertyType.varChar(100));
+                    put("surname", PropertyType.varChar(100));
+                    put("country", PropertyType.STRING);
+                }},
+                ListOrderedSet.listOrderedSet(Arrays.asList("name", "surname"))
+        );
+        VertexLabel addressVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+                "Address",
+                new LinkedHashMap<String, PropertyType>() {{
+                    put("street", PropertyType.varChar(100));
+                    put("suburb", PropertyType.varChar(100));
+                    put("province", PropertyType.varChar(100));
+                    put("country", PropertyType.varChar(100));
+                    put("designation", PropertyType.STRING);
+                }},
+                ListOrderedSet.listOrderedSet(Arrays.asList("street", "suburb", "province", "country"))
+        );
+        EdgeLabel livesAtEdgeLabel = personVertexLabel.ensureEdgeLabelExist(
+                "livesAt",
+                addressVertexLabel,
+                new HashMap<String, PropertyType>() {{
+                    put("uid1", PropertyType.varChar(100));
+                    put("uid2", PropertyType.varChar(100));
+                }},
+                ListOrderedSet.listOrderedSet(Arrays.asList("uid1", "uid2"))
+        );
+        this.sqlgGraph.tx().commit();
+
+        Vertex john = this.sqlgGraph.addVertex(
+                T.label, "Person",
+                "name", "John",
+                "surname", "Smith",
+                "country", "NorthPole");
+        Vertex address = this.sqlgGraph.addVertex(
+                T.label, "Address",
+                "street", "1st Street",
+                "suburb", "Downtown",
+                "province", "Midlands",
+                "country", "NorthPole",
+                "designation", "home");
+        john.addEdge("livesAt", address, "uid1", UUID.randomUUID().toString(), "uid2", UUID.randomUUID().toString());
+        this.sqlgGraph.tx().commit();
+
+        Assert.assertEquals(1, this.sqlgGraph.traversal().V().hasLabel("Person").out("livesAt").toList().size());
+
+        GraphTraversal<Vertex, Vertex> traversal = this.sqlgGraph.traversal().V(john.id()).out("livesAt");
+        Assert.assertTrue(traversal.hasNext());
+        Assert.assertEquals(address, traversal.next());
+        Assert.assertFalse(traversal.hasNext());
+
+        RecordId recordId = RecordId.from(SchemaTable.of("public", "Person"), ListOrderedSet.listOrderedSet(Arrays.asList("John", "Smith")));
+        traversal = this.sqlgGraph.traversal().V(recordId).out("livesAt");
+        Assert.assertTrue(traversal.hasNext());
+        Assert.assertEquals(address, traversal.next());
+        Assert.assertFalse(traversal.hasNext());
+    }
+
+    //    @Test
     public void testMatch() {
         Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1");
         Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "name", "b1");
@@ -804,6 +873,5 @@ public class TestForDocs extends BaseTest {
 //        stopWatch.stop();
 //        System.out.println("Time to read all vertices: " + stopWatch.toString());
 //    }
-
 
 }

@@ -3,6 +3,8 @@ package org.umlg.sqlg.test.usersuppliedpk.topology;
 import org.apache.commons.collections4.set.ListOrderedSet;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -13,15 +15,13 @@ import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.test.BaseTest;
 
 import java.net.URL;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * @author Pieter Martin (https://github.com/pietermartin)
  * Date: 2018/03/17
  */
+@SuppressWarnings("Duplicates")
 public class TestUserSuppliedPKTopology extends BaseTest {
 
     @SuppressWarnings("Duplicates")
@@ -279,4 +279,51 @@ public class TestUserSuppliedPKTopology extends BaseTest {
         livesAt = this.sqlgGraph.getTopology().getEdgeLabel(this.sqlgGraph.getSqlDialect().getPublicSchema(), "livesAt");
         Assert.assertTrue(livesAt.isPresent());
     }
+
+    @Test
+    public void testMultiplePKs() throws Exception {
+        VertexLabel personVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+                "Person",
+                new LinkedHashMap<String, PropertyType>() {{
+                    put("name", PropertyType.varChar(100));
+                }},
+                ListOrderedSet.listOrderedSet(Collections.singletonList("name"))
+        );
+        VertexLabel addressVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+                "Address",
+                new LinkedHashMap<String, PropertyType>() {{
+                    put("street", PropertyType.varChar(100));
+                    put("suburb", PropertyType.varChar(100));
+                }},
+                ListOrderedSet.listOrderedSet(Arrays.asList("street", "suburb"))
+        );
+        personVertexLabel.ensureEdgeLabelExist(
+                "livesAt",
+                addressVertexLabel,
+                new HashMap<String, PropertyType>() {{
+                    put("uid1", PropertyType.varChar(100));
+                }},
+                ListOrderedSet.listOrderedSet(Arrays.asList("uid1"))
+        );
+        this.sqlgGraph.tx().commit();
+
+        for (int i = 0; i < 10; i++) {
+            Vertex john = this.sqlgGraph.addVertex(
+                    T.label, "Person",
+                    "name", "John" + i
+            );
+            Vertex address1 = this.sqlgGraph.addVertex(
+                    T.label, "Address",
+                    "street", "1st Street" + i,
+                    "suburb", "Downtown"
+            );
+            john.addEdge("livesAt", address1, "uid1", UUID.randomUUID().toString());
+        }
+        this.sqlgGraph.tx().commit();
+
+        List<Vertex> addresses = this.sqlgGraph.traversal().V().hasLabel("Person").out("livesAt").toList();
+        Assert.assertEquals(10, addresses.size());
+
+    }
+
 }

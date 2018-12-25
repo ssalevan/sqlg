@@ -179,11 +179,11 @@ public class SqlgEdge extends SqlgElement implements Edge {
         } else {
             int i = 1;
             for (String identifier : inVertexLabel.getIdentifiers()) {
-                if (outVertexLabel.isDistributed() && outVertexLabel.getDistributionPropertyColumn().getName().equals(identifier)) {
+                if (inVertexLabel.isDistributed() && inVertexLabel.getDistributionPropertyColumn().getName().equals(identifier)) {
                     i++;
                 } else {
                     sql.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(this.inVertex.schema + "." + this.inVertex.table + "." + identifier + Topology.IN_VERTEX_COLUMN_END));
-                    if (outVertexLabel.isDistributed()) {
+                    if (inVertexLabel.isDistributed()) {
                         if (i++ < inVertexLabel.getIdentifiers().size() - 1) {
                             sql.append(", ");
                         }
@@ -206,11 +206,11 @@ public class SqlgEdge extends SqlgElement implements Edge {
                 } else {
                     sql.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(this.outVertex.schema + "." + this.outVertex.table + "." + identifier + Topology.OUT_VERTEX_COLUMN_END));
                     if (outVertexLabel.isDistributed()) {
-                        if (i++ < inVertexLabel.getIdentifiers().size() - 1) {
+                        if (i++ < outVertexLabel.getIdentifiers().size() - 1) {
                             sql.append(", ");
                         }
                     } else {
-                        if (i++ < inVertexLabel.getIdentifiers().size()) {
+                        if (i++ < outVertexLabel.getIdentifiers().size()) {
                             sql.append(", ");
                         }
                     }

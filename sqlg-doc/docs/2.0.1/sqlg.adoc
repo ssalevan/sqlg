@@ -90,7 +90,7 @@ Sqlg passes TinkerPop's `StructureStandardSuite` and `ProcessStandardSuite` test
 - UniformListValues
 
 [NOTE]
-Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is explained below.
+Sqlg supports `UserSuppliedIds` but not quite as defined by TinkerPop. This is explained <<User supplied ids, below>>.
 
 == Limitations
 
@@ -923,7 +923,7 @@ Turn sql logging on by setting `log4j.logger.org.umlg.sqlg=debug`
 
 === Optimization (strategy 1)
 
-The following steps are optimized. Steps are
+The following steps are optimized.
 
 * <<Graph Step>>
 * <<Vertex Step>>
@@ -3545,6 +3545,90 @@ public void queryCache() {
 <5> Use the 'person' VertexLabel to get its 'knows' out edge.
 <6> Use the 'person' VertexLabel to get its 'name' property. Properties are represented by the `PropertyColumn` class.
 <7> On the `PropertyColumn` object one can get the `PropertyType`. PropertyType is an enum representing all data types supported by Sqlg.
+
+=== User supplied ids
+
+Sqlg supports `User supplied ids`. However it is different to Tinkerpop's `user supplied ids`.
+In Sqlg you define the `VertexLabel` or `EdgeLabel` as per normal and then additionally specify which columns make
+up the identifiers. The identifiers translates directly to the `RDBMS` ' primary key columns. If there are more than
+one identifier specified the corresponding table will have a composite primary key.
+
+[NOTE]
+`User supplied ids` are necessary for `postgresql` 's `partitioning`.
+Partitioned tables may not have auto generated primary keys.
+
+.eg
+[source,java,options="nowrap"]
+----
+@Test
+public void testUserSuppliedIds() {
+    VertexLabel personVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+            "Person",
+            new LinkedHashMap<String, PropertyType>() {{
+                put("name", PropertyType.varChar(100));
+                put("surname", PropertyType.varChar(100));
+                put("country", PropertyType.STRING);
+            }},
+            ListOrderedSet.listOrderedSet(Arrays.asList("name", "surname")) # <1>
+    );
+    VertexLabel addressVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+            "Address",
+            new LinkedHashMap<String, PropertyType>() {{
+                put("street", PropertyType.varChar(100));
+                put("suburb", PropertyType.varChar(100));
+                put("province", PropertyType.varChar(100));
+                put("country", PropertyType.varChar(100));
+                put("designation", PropertyType.STRING);
+            }},
+            ListOrderedSet.listOrderedSet(Arrays.asList("street", "suburb", "province", "country")) # <2>
+    );
+    EdgeLabel livesAtEdgeLabel = personVertexLabel.ensureEdgeLabelExist(
+            "livesAt",
+            addressVertexLabel,
+            new HashMap<String, PropertyType>() {{
+                put("uid1", PropertyType.varChar(100));
+                put("uid2", PropertyType.varChar(100));
+            }},
+            ListOrderedSet.listOrderedSet(Arrays.asList("uid1", "uid2")) # <3>
+    );
+    this.sqlgGraph.tx().commit();
+
+    Vertex john = this.sqlgGraph.addVertex(
+            T.label, "Person",
+            "name", "John",
+            "surname", "Smith",
+            "country", "NorthPole"); # <4>
+    Vertex address = this.sqlgGraph.addVertex(
+            T.label, "Address",
+            "street", "1st Street",
+            "suburb", "Downtown",
+            "province", "Midlands",
+            "country", "NorthPole",
+            "designation", "home");
+    john.addEdge("livesAt", address, "uid1", UUID.randomUUID().toString(), "uid2", UUID.randomUUID().toString()); # <5>
+    this.sqlgGraph.tx().commit();
+
+    Assert.assertEquals(1, this.sqlgGraph.traversal().V().hasLabel("Person").out("livesAt").toList().size()); # <6>
+
+    GraphTraversal<Vertex, Vertex> traversal = this.sqlgGraph.traversal().V(john.id()).out("livesAt");
+    Assert.assertTrue(traversal.hasNext());
+    Assert.assertEquals(address, traversal.next());
+    Assert.assertFalse(traversal.hasNext());
+
+    RecordId recordId = RecordId.from(SchemaTable.of("public", "Person"), ListOrderedSet.listOrderedSet(Arrays.asList("John", "Smith"))); # <7>
+    traversal = this.sqlgGraph.traversal().V(recordId).out("livesAt");
+    Assert.assertTrue(traversal.hasNext());
+    Assert.assertEquals(address, traversal.next());
+    Assert.assertFalse(traversal.hasNext());
+}
+----
+<1> Specify `Person` VertexLabel's identifiers.
+<2> Specify `Address` VertexLabel's  identifiers.
+<3> Specify `livesAt` EdgeLabel's identifiers.
+<4> Create the vertex as per normal. The identifiers must be present!
+<5> Create the edge as per normal. The identifiers must be present!
+<6> Traverse the graph as per normal.
+<7> Create a `RecordId` object with the identifiers.
 
 == Postgresql Partitioning
 
