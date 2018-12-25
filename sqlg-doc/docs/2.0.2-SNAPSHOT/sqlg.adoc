@@ -1,6 +1,6 @@
 = Sqlg Documentation
 Pieter Martin
-Version 2.0.0, August 2018:
+Version 2.0.2-SNAPSHOT, December 2018:
 :sectnums:
 :toc: left
 :toclevels: 4
@@ -18,6 +18,8 @@ https://mariadb.org/[MariaDB], https://www.mysql.com/[MySQL] and
 https://www.microsoft.com/en-us/sql-server/sql-server-2017[MSSqlServer] are supported.
 
 Sqlg has a google group https://groups.google.com/forum/?hl=en#!forum/sqlg[forum]
+
+Sqlg's http://www.sqlg.org/docs/2.0.2-SNAPSHOT/apidocs/[javadocs]
 
 == Introduction
 
@@ -37,7 +39,7 @@ image:github/SVG/law.svg[MIT] https://github.com/pietermartin/sqlg/blob/master/L
 
 == TinkerPop supported features
 
-Sqlg version 2.0.0 runs on https://tinkerpop.apache.org[TinkerPop 3.3.3].
+Sqlg version 2.0.0 runs on https://tinkerpop.apache.org[TinkerPop 3.3.4].
 
 Sqlg passes TinkerPop's `StructureStandardSuite` and `ProcessStandardSuite` test suites.
 
@@ -104,42 +106,42 @@ Postgresql schema, table and column names can not be more than 63 characters lon
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-postgres</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .HSQLDB
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-hsqldb</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .H2
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-h2</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .MariaDB
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-mariadb</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .MySQL
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-mysql</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .MSSqlServer
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-mssqlserver</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 This will include `gremlin-groovy`. If you have no need for that then use the following coordinates.
@@ -148,42 +150,42 @@ This will include `gremlin-groovy`. If you have no need for that then use the fo
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-postgres-dialect</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .HSQLDB
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-hsqldb-dialect</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .H2
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-h2-dialect</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .MariaDB
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-mariadb-dialect</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .MySQL
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-mysql-dialect</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 .MSSqlServer
  <dependency>
      <groupId>org.umlg</groupId>
      <artifactId>sqlg-mssqlserver-dialect</artifactId>
-     <version>2.0.0</version>
+     <version>2.0.2-SNAPSHOT</version>
  </dependency>
 
 === Start

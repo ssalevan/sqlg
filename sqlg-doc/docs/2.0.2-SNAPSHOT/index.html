@@ -425,8 +425,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <h1>Sqlg Documentation</h1>
 <div class="details">
 <span id="author" class="author">Pieter Martin</span><br>
-<span id="revnumber">version 2.0.0,</span>
-<span id="revdate">August 2018</span>
+<span id="revnumber">version 2.0.2-SNAPSHOT,</span>
+<span id="revdate">December 2018</span>
 <br><span id="revremark"></span>
 </div>
 <div id="toc" class="toc2">
@@ -527,6 +527,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_topology">12. Topology</a>
 <ul class="sectlevel2">
 <li><a href="#_topology_eager_creation">12.1. Topology eager creation</a></li>
+<li><a href="#_user_supplied_ids">12.2. User supplied ids</a></li>
 </ul>
 </li>
 <li><a href="#_postgresql_partitioning">13. Postgresql Partitioning</a></li>
@@ -544,7 +545,8 @@ Currently <a href="http://www.postgresql.org/">Postgresql</a>, <a href="http://h
 <a href="https://www.microsoft.com/en-us/sql-server/sql-server-2017">MSSqlServer</a> are supported.</p>
 </div>
 <div class="paragraph">
-<p>Sqlg has a google group <a href="https://groups.google.com/forum/?hl=en#!forum/sqlg">forum</a></p>
+<p>Sqlg has a google group <a href="https://groups.google.com/forum/?hl=en#!forum/sqlg">forum</a>
+Sqlg&#8217;s <a href="https://192.168.0.10/docs/2.0.2-SNAPSHOT/apidocs/">javadocs</a></p>
 </div>
 </div>
 </div>
@@ -586,7 +588,7 @@ Hsqldb and H2 do not suffer the same latency as Postgresql, MSSqlServer and Mari
 <h2 id="_tinkerpop_supported_features">3. TinkerPop supported features</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Sqlg version 2.0.0 runs on <a href="https://tinkerpop.apache.org">TinkerPop 3.3.3</a>.</p>
+<p>Sqlg version 2.0.0 runs on <a href="https://tinkerpop.apache.org">TinkerPop 3.3.4</a>.</p>
 </div>
 <div class="paragraph">
 <p>Sqlg passes TinkerPop&#8217;s <code>StructureStandardSuite</code> and <code>ProcessStandardSuite</code> test suites.</p>
@@ -722,7 +724,7 @@ Hsqldb and H2 do not suffer the same latency as Postgresql, MSSqlServer and Mari
 <div class="title">Note</div>
 </td>
 <td class="content">
-Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is explained below.
+Sqlg supports <code>UserSuppliedIds</code> but not quite as defined by TinkerPop. This is explained <a href="#_user_supplied_ids">below</a>.
 </td>
 </tr>
 </table>
@@ -748,7 +750,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-postgres&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -758,7 +760,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-hsqldb&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -768,7 +770,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-h2&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -778,7 +780,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-mariadb&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -788,7 +790,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-mysql&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -798,7 +800,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-mssqlserver&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -811,7 +813,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-postgres-dialect&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -821,7 +823,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-hsqldb-dialect&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -831,7 +833,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-h2-dialect&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -841,7 +843,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-mariadb-dialect&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -851,7 +853,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-mysql-dialect&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -861,7 +863,7 @@ Sqlg supports user supplied ids but not quite as defined by TinkerPop. This is e
 <pre>&lt;dependency&gt;
     &lt;groupId&gt;org.umlg&lt;/groupId&gt;
     &lt;artifactId&gt;sqlg-mssqlserver-dialect&lt;/artifactId&gt;
-    &lt;version&gt;2.0.0&lt;/version&gt;
+    &lt;version&gt;2.0.2-SNAPSHOT&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 </div>
 </div>
@@ -1401,7 +1403,7 @@ If not the class-loaders are confused and can not load Sqlg's sqlg.plugin</pre>
 <div class="paragraph">
 <p>TinkerPop&#8217;s property graph semantics specifies that every vertex and edge has a single label. Modelling this in a RDBMS
 is trivial. TinkerPop has no notion of cardinality nor of order. Every relationship between vertex labels is modelled as
-<code>many to many</code> relationship with no specified order.</p>
+a <code>many to many</code> relationship with no specified order.</p>
 </div>
 <div class="paragraph">
 <p>This realizes itself as a classic <code>many to many</code> relationship in a RDBMS database.</p>
@@ -1906,7 +1908,7 @@ Turn sql logging on by setting <code>log4j.logger.org.umlg.sqlg=debug</code>
 <div class="sect2">
 <h3 id="_optimization_strategy_1">10.1. Optimization (strategy 1)</h3>
 <div class="paragraph">
-<p>The following steps are optimized. Steps are</p>
+<p>The following steps are optimized.</p>
 </div>
 <div class="ulist">
 <ul>
@@ -4946,6 +4948,119 @@ public void queryCache() {
 </ol>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_user_supplied_ids">12.2. User supplied ids</h3>
+<div class="paragraph">
+<p>Sqlg supports <code>User supplied ids</code>. However it is different to Tinkerpop&#8217;s <code>user supplied ids</code>.
+In Sqlg you define the <code>VertexLabel</code> or <code>EdgeLabel</code> as per normal and then additionally specify which columns make
+up the identifiers. The identifiers translates directly to the <code>RDBMS</code> ' primary key columns. If there are more than
+one identifier specified the corresponding table will have a composite primary key.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<code>User supplied ids</code> are necessary for <code>postgresql</code> 's <code>partitioning</code>.
+Partitioned tables may not have auto generated primary keys.
+</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="title">eg</div>
+<div class="content">
+<pre class="highlightjs highlight nowrap"><code class="language-java hljs" data-lang="java">@Test
+public void testUserSuppliedIds() {
+    VertexLabel personVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+            "Person",
+            new LinkedHashMap&lt;String, PropertyType&gt;() {{
+                put("name", PropertyType.varChar(100));
+                put("surname", PropertyType.varChar(100));
+                put("country", PropertyType.STRING);
+            }},
+            ListOrderedSet.listOrderedSet(Arrays.asList("name", "surname")) <b class="conum">(1)</b>
+    );
+    VertexLabel addressVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+            "Address",
+            new LinkedHashMap&lt;String, PropertyType&gt;() {{
+                put("street", PropertyType.varChar(100));
+                put("suburb", PropertyType.varChar(100));
+                put("province", PropertyType.varChar(100));
+                put("country", PropertyType.varChar(100));
+                put("designation", PropertyType.STRING);
+            }},
+            ListOrderedSet.listOrderedSet(Arrays.asList("street", "suburb", "province", "country")) <b class="conum">(2)</b>
+    );
+    EdgeLabel livesAtEdgeLabel = personVertexLabel.ensureEdgeLabelExist(
+            "livesAt",
+            addressVertexLabel,
+            new HashMap&lt;String, PropertyType&gt;() {{
+                put("uid1", PropertyType.varChar(100));
+                put("uid2", PropertyType.varChar(100));
+            }},
+            ListOrderedSet.listOrderedSet(Arrays.asList("uid1", "uid2")) <b class="conum">(3)</b>
+    );
+    this.sqlgGraph.tx().commit();
+
+    Vertex john = this.sqlgGraph.addVertex(
+            T.label, "Person",
+            "name", "John",
+            "surname", "Smith",
+            "country", "NorthPole"); <b class="conum">(4)</b>
+    Vertex address = this.sqlgGraph.addVertex(
+            T.label, "Address",
+            "street", "1st Street",
+            "suburb", "Downtown",
+            "province", "Midlands",
+            "country", "NorthPole",
+            "designation", "home");
+    john.addEdge("livesAt", address, "uid1", UUID.randomUUID().toString(), "uid2", UUID.randomUUID().toString()); <b class="conum">(5)</b>
+    this.sqlgGraph.tx().commit();
+
+    Assert.assertEquals(1, this.sqlgGraph.traversal().V().hasLabel("Person").out("livesAt").toList().size()); <b class="conum">(6)</b>
+
+    GraphTraversal&lt;Vertex, Vertex&gt; traversal = this.sqlgGraph.traversal().V(john.id()).out("livesAt");
+    Assert.assertTrue(traversal.hasNext());
+    Assert.assertEquals(address, traversal.next());
+    Assert.assertFalse(traversal.hasNext());
+
+    RecordId recordId = RecordId.from(SchemaTable.of("public", "Person"), ListOrderedSet.listOrderedSet(Arrays.asList("John", "Smith"))); <b class="conum">(7)</b>
+    traversal = this.sqlgGraph.traversal().V(recordId).out("livesAt");
+    Assert.assertTrue(traversal.hasNext());
+    Assert.assertEquals(address, traversal.next());
+    Assert.assertFalse(traversal.hasNext());
+}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>Specify <code>Person</code> VertexLabel&#8217;s identifiers.</p>
+</li>
+<li>
+<p>Specify <code>Address</code> VertexLabel&#8217;s  identifiers.</p>
+</li>
+<li>
+<p>Specify <code>livesAt</code> EdgeLabel&#8217;s identifiers.</p>
+</li>
+<li>
+<p>Create the vertex as per normal. The identifiers must be present!</p>
+</li>
+<li>
+<p>Create the edge as per normal. The identifiers must be present!</p>
+</li>
+<li>
+<p>Traverse the graph as per normal.</p>
+</li>
+<li>
+<p>Create a <code>RecordId</code> object with the identifiers.</p>
+</li>
+</ol>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -5087,8 +5202,8 @@ public void testPartitioningList() {
 </div>
 <div id="footer">
 <div id="footer-text">
-Version 2.0.0<br>
-Last updated 2018-12-20 06:57:58 SAST
+Version 2.0.2-SNAPSHOT<br>
+Last updated 2018-12-25 12:57:32 SAST
 </div>
 </div>
 <script src="tocbot.js"></script>

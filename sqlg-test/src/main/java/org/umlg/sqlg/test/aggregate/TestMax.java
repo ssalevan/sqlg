@@ -1,11 +1,14 @@
 package org.umlg.sqlg.test.aggregate;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.Assert;
 import org.junit.Test;
 import org.umlg.sqlg.test.BaseTest;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author Pieter Martin (https://github.com/pietermartin)
@@ -50,5 +53,17 @@ public class TestMax extends BaseTest {
         Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().values("age").max();
         printTraversalForm(traversal);
         checkResults(Arrays.asList(35), traversal);
+    }
+
+//    @Test
+    public void testOptimizeOnPropertyExistence() {
+        Vertex a = this.sqlgGraph.addVertex(T.label, "A", "namea", "a");
+        Vertex b = this.sqlgGraph.addVertex(T.label, "B", "nameb", "b");
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Vertex> traversal = this.sqlgGraph.traversal().V().has("namea", "a");
+        List<Vertex> vertices = traversal.toList();
+        Assert.assertEquals(1, vertices.size());
+        Assert.assertEquals(a, vertices.get(0));
     }
 }
