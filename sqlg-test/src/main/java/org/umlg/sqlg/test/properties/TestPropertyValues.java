@@ -27,6 +27,7 @@ import java.util.*;
  * @author JP Moresmau
  * @author Pieter Martin (https://github.com/pietermartin)
  */
+@SuppressWarnings("Duplicates")
 public class TestPropertyValues extends BaseTest {
 
     @Test
@@ -168,7 +169,7 @@ public class TestPropertyValues extends BaseTest {
         printTraversalForm(gt);
         Assert.assertTrue(gt.hasNext());
         Map<String, Object> m = gt.next();
-        Assert.assertEquals(new Integer(5), m.get("stars"));
+        Assert.assertEquals(5, m.get("stars"));
         Assert.assertEquals("Joe", m.get("user"));
         Assert.assertEquals(id0, m.get("item"));
     }
@@ -354,7 +355,7 @@ public class TestPropertyValues extends BaseTest {
         while (traversal.hasNext()) {
             names.add(traversal.next());
         }
-        Assert.assertEquals(new HashSet<>(Arrays.asList("marko")), names);
+        Assert.assertEquals(new HashSet<>(Collections.singletonList("marko")), names);
     }
 
     @Test
@@ -416,7 +417,7 @@ public class TestPropertyValues extends BaseTest {
         loadModern();
         final Traversal<Vertex, String> traversal = this.sqlgGraph.traversal().V().<String>values("name").order().tail();
         printTraversalForm(traversal);
-        Assert.assertEquals(Arrays.asList("vadas"), traversal.toList());
+        Assert.assertEquals(Collections.singletonList("vadas"), traversal.toList());
     }
 
     /**
@@ -483,6 +484,134 @@ public class TestPropertyValues extends BaseTest {
             }
         }
         Assert.assertTrue(found);
+    }
+
+    @Test
+    public void testRestrictedPropertiesFiltersQuery() {
+        Vertex a = this.sqlgGraph.addVertex(T.label, "A", "a", "a1");
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "b", "b1");
+        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "b", "b2");
+        Vertex c1 = this.sqlgGraph.addVertex(T.label, "C", "c", "c1");
+        Vertex c2 =  this.sqlgGraph.addVertex(T.label, "C", "c", "c2");
+        a.addEdge("ab", b1);
+        a.addEdge("ab", b2);
+        a.addEdge("ac", c1);
+        a.addEdge("ac", c2);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, String> t = this.sqlgGraph.traversal().V().values("c");
+        List<String> values = t.toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.contains("c1"));
+        Assert.assertTrue(values.contains("c2"));
+
+        t = this.sqlgGraph.traversal().V().hasLabel("A").out().values("c");
+        values = t.toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.contains("c1"));
+        Assert.assertTrue(values.contains("c2"));
+
+    }
+
+    @Test
+    public void testRestrictedPropertiesOnOutEdge() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "a", "a1");
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "b", "b1");
+        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "b", "b2");
+        Vertex c1 = this.sqlgGraph.addVertex(T.label, "C", "c", "c1");
+        Vertex c2 = this.sqlgGraph.addVertex(T.label, "C", "c", "c2");
+        a1.addEdge("ab", b1, "e", "e1");
+        a1.addEdge("ab", b2, "e", "e2");
+        a1.addEdge("ac", c1);
+        a1.addEdge("ac", c2);
+        this.sqlgGraph.tx().commit();
+
+        //Need to manually check that only the 'ab' edge is queries as 'ac' does not have a 'e' property.
+        List<String> values = this.sqlgGraph.traversal().V().hasLabel("A").outE().<String>values("e").toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.contains("e1"));
+        Assert.assertTrue(values.contains("e2"));
+    }
+
+    @Test
+    public void testRestrictedPropertyOnIn() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "a", "a1");
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "a", "a2");
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "b", "b1", "e", "e1");
+        Vertex c1 = this.sqlgGraph.addVertex(T.label, "C", "c", "c1");
+        b1.addEdge("ab", a1);
+        b1.addEdge("ab", a2);
+        c1.addEdge("ac", a1);
+        c1.addEdge("ac", a2);
+        this.sqlgGraph.tx().commit();
+
+        //Need to manually check that only the 'ab' edge is queries as 'ac' does not have a 'e' property.
+        List<String> values = this.sqlgGraph.traversal().V().hasLabel("A").in().<String>values("e").toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.remove("e1"));
+        Assert.assertTrue(values.remove("e1"));
+        Assert.assertTrue(values.isEmpty());
+    }
+
+    @Test
+    public void testRestrictedPropertyOnInEdge() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "a", "a1");
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "a", "a2");
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "b", "b1");
+        Vertex c1 = this.sqlgGraph.addVertex(T.label, "C", "c", "c1");
+        b1.addEdge("ab", a1, "e", "e1");
+        b1.addEdge("ab", a2, "e", "e2");
+        c1.addEdge("ac", a1);
+        c1.addEdge("ac", a2);
+        this.sqlgGraph.tx().commit();
+
+        //Need to manually check that only the 'ab' edge is queries as 'ac' does not have a 'e' property.
+        List<String> values = this.sqlgGraph.traversal().V().hasLabel("A").inE().<String>values("e").toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.contains("e1"));
+        Assert.assertTrue(values.contains("e2"));
+
+    }
+
+    @Test
+    public void testRestrictedPropertiesOnOutEdgeOtherV() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "a", "a1");
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "b", "b1", "e", "e1");
+        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "b", "b2", "e", "e2");
+        Vertex c1 = this.sqlgGraph.addVertex(T.label, "C", "c", "c1");
+        Vertex c2 = this.sqlgGraph.addVertex(T.label, "C", "c", "c2");
+        a1.addEdge("ab", b1);
+        a1.addEdge("ab", b2);
+        a1.addEdge("ac", c1);
+        a1.addEdge("ac", c2);
+        this.sqlgGraph.tx().commit();
+
+        //Need to manually check that only the 'ab' edge is queries as 'ac' does not have a 'e' property.
+        List<String> values = this.sqlgGraph.traversal().V().hasLabel("A").outE().otherV().<String>values("e").toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.contains("e1"));
+        Assert.assertTrue(values.contains("e2"));
+    }
+
+    @Test
+    public void testRestrictedPropertyOnInEdgeOtherV() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "a", "a1");
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "a", "a2");
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "b", "b1", "e", "e1");
+        Vertex c1 = this.sqlgGraph.addVertex(T.label, "C", "c", "c1");
+        b1.addEdge("ab", a1);
+        b1.addEdge("ab", a2);
+        c1.addEdge("ac", a1);
+        c1.addEdge("ac", a2);
+        this.sqlgGraph.tx().commit();
+
+        //Need to manually check that only the 'ab' edge is queries as 'ac' does not have a 'e' property.
+        List<String> values = this.sqlgGraph.traversal().V().hasLabel("A").inE().otherV().<String>values("e").toList();
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.remove("e1"));
+        Assert.assertTrue(values.remove("e1"));
+        Assert.assertTrue(values.isEmpty());
+
     }
 
 }
