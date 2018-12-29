@@ -441,7 +441,7 @@ public class SchemaTableTree {
             return constructDuplicatePathSql(this.sqlgGraph, subQueryStacks);
         } else {
             //If there are no duplicates in the path then one select statement will suffice.
-            return constructSinglePathSql(this.sqlgGraph, false, distinctQueryStack, null, null, false);
+            return constructSinglePathSql(this.sqlgGraph, distinctQueryStack, false);
         }
     }
 
@@ -457,11 +457,11 @@ public class SchemaTableTree {
                         (this.sqlgGraph.getSqlDialect().supportsTruncateMultipleTablesTogether() && hasOnlyOneInOutEdgeLabel(distinctQueryStack.getFirst().getSchemaTable())) ||
                                 (!this.sqlgGraph.getSqlDialect().supportsTruncateMultipleTablesTogether() && hasNoEdgeLabels(distinctQueryStack.getFirst().getSchemaTable()))
                 )) {
-            //truncate logica.
+            //truncate logic.
             SchemaTableTree schemaTableTree = distinctQueryStack.getFirst();
             return this.sqlgGraph.getSqlDialect().sqlTruncate(this.sqlgGraph, schemaTableTree.getSchemaTable());
         } else {
-            String leafNodeToDelete = constructSinglePathSql(this.sqlgGraph, false, distinctQueryStack, null, null, true);
+            String leafNodeToDelete = constructSinglePathSql(this.sqlgGraph, distinctQueryStack, true);
             resetColumnAliasMaps();
 
             Optional<String> edgesToDelete = Optional.empty();
@@ -477,53 +477,6 @@ public class SchemaTableTree {
 
     }
 
-    private boolean hasOnlyOneInOutEdgeLabel(SchemaTable schemaTable) {
-        Optional<Schema> schemaOptional = sqlgGraph.getTopology().getSchema(schemaTable.getSchema());
-        Preconditions.checkState(schemaOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.getSchema());
-        Schema schema = schemaOptional.get();
-        boolean result = true;
-        if (schemaTable.isVertexTable()) {
-            //Need to delete any in/out edges.
-            Optional<VertexLabel> vertexLabelOptional = schema.getVertexLabel(schemaTable.withOutPrefix().getTable());
-            Preconditions.checkState(vertexLabelOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.withOutPrefix().getTable());
-            VertexLabel vertexLabel = vertexLabelOptional.get();
-            Collection<EdgeLabel> outEdgeLabels = vertexLabel.getOutEdgeLabels().values();
-            for (EdgeLabel edgeLabel : outEdgeLabels) {
-                result = edgeLabel.getOutVertexLabels().size() == 1;
-                if (!result) {
-                    break;
-                }
-            }
-            if (result) {
-                Collection<EdgeLabel> inEdgeLabels = vertexLabel.getInEdgeLabels().values();
-                for (EdgeLabel edgeLabel : inEdgeLabels) {
-                    result = edgeLabel.getInVertexLabels().size() == 1;
-                    if (!result) {
-                        break;
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private boolean hasNoEdgeLabels(SchemaTable schemaTable) {
-        Optional<Schema> schemaOptional = sqlgGraph.getTopology().getSchema(schemaTable.getSchema());
-        Preconditions.checkState(schemaOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.getSchema());
-        Schema schema = schemaOptional.get();
-        boolean result = true;
-        if (schemaTable.isVertexTable()) {
-            //Need to delete any in/out edges.
-            Optional<VertexLabel> vertexLabelOptional = schema.getVertexLabel(schemaTable.withOutPrefix().getTable());
-            Preconditions.checkState(vertexLabelOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.withOutPrefix().getTable());
-            VertexLabel vertexLabel = vertexLabelOptional.get();
-            Collection<EdgeLabel> outEdgeLabels = vertexLabel.getOutEdgeLabels().values();
-            Collection<EdgeLabel> inEdgeLabels = vertexLabel.getInEdgeLabels().values();
-            result = outEdgeLabels.isEmpty() && inEdgeLabels.isEmpty();
-        }
-        return result;
-
-    }
 
     public String constructSqlForOptional(LinkedList<SchemaTableTree> innerJoinStack, Set<SchemaTableTree> leftJoinOn) {
         Preconditions.checkState(this.parent == null, CONSTRUCT_SQL_MAY_ONLY_BE_CALLED_ON_THE_ROOT_OBJECT);
@@ -628,7 +581,6 @@ public class SchemaTableTree {
 
             String sql;
             if (last) {
-                //only the last step must have dropStep as true. As only the outer select needs only an ID in the select
                 sql = constructSinglePathSql(sqlgGraph, true, subQueryLinkedList, lastOfPrevious, null, leftJoinOn, false);
             } else {
                 sql = constructSinglePathSql(sqlgGraph, true, subQueryLinkedList, lastOfPrevious, firstOfNext);
@@ -837,12 +789,9 @@ public class SchemaTableTree {
 
     private String constructSinglePathSql(
             SqlgGraph sqlgGraph,
-            boolean partOfDuplicateQuery,
             LinkedList<SchemaTableTree> distinctQueryStack,
-            SchemaTableTree lastOfPrevious,
-            SchemaTableTree firstOfNextStack,
             boolean dropStep) {
-        return constructSinglePathSql(sqlgGraph, partOfDuplicateQuery, distinctQueryStack, lastOfPrevious, firstOfNextStack, Collections.emptySet(), dropStep);
+        return constructSinglePathSql(sqlgGraph, false, distinctQueryStack, null, null, Collections.emptySet(), dropStep);
     }
 
     /**
@@ -874,6 +823,7 @@ public class SchemaTableTree {
                 dropStep);
     }
 
+    @SuppressWarnings("Duplicates")
     private String constructSelectSinglePathSql(
             SqlgGraph sqlgGraph,
             boolean partOfDuplicateQuery,
@@ -936,7 +886,7 @@ public class SchemaTableTree {
             startIndexColumns++;
         }
 
-        singlePathSql.append(constructFromClause(sqlgGraph, currentColumnList, distinctQueryStack, lastOfPrevious, firstOfNextStack));
+        singlePathSql.append(constructFromClause(sqlgGraph, currentColumnList, distinctQueryStack, lastOfPrevious, firstOfNextStack, partOfDuplicateQuery));
         singlePathSql.append("\nFROM\n\t");
         singlePathSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(firstSchemaTableTree.getSchemaTable().getSchema()));
         singlePathSql.append(".");
@@ -1175,6 +1125,53 @@ public class SchemaTableTree {
         return singlePathSql.toString();
     }
 
+    private boolean hasOnlyOneInOutEdgeLabel(SchemaTable schemaTable) {
+        Optional<Schema> schemaOptional = sqlgGraph.getTopology().getSchema(schemaTable.getSchema());
+        Preconditions.checkState(schemaOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.getSchema());
+        Schema schema = schemaOptional.get();
+        boolean result = true;
+        if (schemaTable.isVertexTable()) {
+            //Need to delete any in/out edges.
+            Optional<VertexLabel> vertexLabelOptional = schema.getVertexLabel(schemaTable.withOutPrefix().getTable());
+            Preconditions.checkState(vertexLabelOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.withOutPrefix().getTable());
+            VertexLabel vertexLabel = vertexLabelOptional.get();
+            Collection<EdgeLabel> outEdgeLabels = vertexLabel.getOutEdgeLabels().values();
+            for (EdgeLabel edgeLabel : outEdgeLabels) {
+                result = edgeLabel.getOutVertexLabels().size() == 1;
+                if (!result) {
+                    break;
+                }
+            }
+            if (result) {
+                Collection<EdgeLabel> inEdgeLabels = vertexLabel.getInEdgeLabels().values();
+                for (EdgeLabel edgeLabel : inEdgeLabels) {
+                    result = edgeLabel.getInVertexLabels().size() == 1;
+                    if (!result) {
+                        break;
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private boolean hasNoEdgeLabels(SchemaTable schemaTable) {
+        Optional<Schema> schemaOptional = sqlgGraph.getTopology().getSchema(schemaTable.getSchema());
+        Preconditions.checkState(schemaOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.getSchema());
+        Schema schema = schemaOptional.get();
+        boolean result = true;
+        if (schemaTable.isVertexTable()) {
+            //Need to delete any in/out edges.
+            Optional<VertexLabel> vertexLabelOptional = schema.getVertexLabel(schemaTable.withOutPrefix().getTable());
+            Preconditions.checkState(vertexLabelOptional.isPresent(), "BUG: %s not found in the topology.", schemaTable.withOutPrefix().getTable());
+            VertexLabel vertexLabel = vertexLabelOptional.get();
+            Collection<EdgeLabel> outEdgeLabels = vertexLabel.getOutEdgeLabels().values();
+            Collection<EdgeLabel> inEdgeLabels = vertexLabel.getInEdgeLabels().values();
+            result = outEdgeLabels.isEmpty() && inEdgeLabels.isEmpty();
+        }
+        return result;
+
+    }
 
     private boolean hasBulkWithinOrOut(SqlgGraph sqlgGraph) {
         return this.hasContainers.stream().anyMatch(h -> SqlgUtil.isBulkWithinAndOut(sqlgGraph, h));
@@ -1621,19 +1618,18 @@ public class SchemaTableTree {
      * Constructs the from clause with the required selected fields needed to make the join between the previous and the next SchemaTable
      *
      * @param columnList
-     * @param distinctQueryStack      //     * @param firstSchemaTableTree    This is the first SchemaTable in the current sql stack. If it is an Edge table then its foreign key
-     *                                //     *                                field to the previous table need to be in the select clause in order for the join statement to
-     *                                //     *                                reference it.
-     *                                //     * @param lastSchemaTableTree
+     * @param distinctQueryStack
      * @param previousSchemaTableTree The previous schemaTableTree that will be joined to.
      * @param nextSchemaTableTree     represents the table to join to. it is null for the last table as there is nothing to join to.  @return
      */
+    @SuppressWarnings("Duplicates")
     private static String constructFromClause(
             SqlgGraph sqlgGraph,
             ColumnList columnList,
             LinkedList<SchemaTableTree> distinctQueryStack,
             SchemaTableTree previousSchemaTableTree,
-            SchemaTableTree nextSchemaTableTree) {
+            SchemaTableTree nextSchemaTableTree,
+            boolean partOfDuplicateQuery) {
 
         SchemaTableTree firstSchemaTableTree = distinctQueryStack.getFirst();
         SchemaTableTree lastSchemaTableTree = distinctQueryStack.getLast();
@@ -1704,7 +1700,7 @@ public class SchemaTableTree {
             }
         } else if (previousSchemaTableTree != null && firstSchemaTable.getTable().startsWith(VERTEX_PREFIX)) {
             //if user defined identifiers then the regular properties make up the ids.
-            if (firstSchemaTableTree.hasIDPrimaryKey && !firstSchemaTableTree.hasAggregateFunction()) {
+            if (firstSchemaTableTree.hasIDPrimaryKey && (!firstSchemaTableTree.hasAggregateFunction() || partOfDuplicateQuery)) {
                 columnList.add(firstSchemaTable, Topology.ID, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculatedAliasId());
             }
             printedId = firstSchemaTable == lastSchemaTable;
@@ -1746,7 +1742,7 @@ public class SchemaTableTree {
                 }
                 constructAllLabeledFromClause(distinctQueryStack, columnList);
             } else {
-                if (nextSchemaTableTree.hasIDPrimaryKey && !nextSchemaTableTree.hasAggregateFunction()) {
+                if (nextSchemaTableTree.hasIDPrimaryKey && (!nextSchemaTableTree.hasAggregateFunction() || partOfDuplicateQuery)) {
                     columnList.add(lastSchemaTable,
                             nextSchemaTableTree.getSchemaTable().getSchema() + "." + nextRawLabel + (nextSchemaTableTree.direction == Direction.OUT ? Topology.IN_VERTEX_COLUMN_END : Topology.OUT_VERTEX_COLUMN_END),
                             nextSchemaTableTree.stepDepth,
@@ -1799,7 +1795,7 @@ public class SchemaTableTree {
             if (!printedId && lastSchemaTableTree.hasIDPrimaryKey && !lastSchemaTableTree.hasAggregateFunction()) {
                 printIDFromClauseFor(lastSchemaTableTree, columnList);
             }
-            printFromClauseFor(lastSchemaTableTree, columnList);
+            printFromClauseFor(lastSchemaTableTree, columnList, partOfDuplicateQuery);
 
             if (lastSchemaTableTree.getSchemaTable().isEdgeTable() && !lastSchemaTableTree.hasAggregateFunction()) {
                 printEdgeInOutVertexIdFromClauseFor(sqlgGraph, firstSchemaTableTree, lastSchemaTableTree, columnList);
@@ -1860,7 +1856,7 @@ public class SchemaTableTree {
         cols.add(lastSchemaTableTree, Topology.ID, lastSchemaTableTree.calculatedAliasId());
     }
 
-    private static void printFromClauseFor(SchemaTableTree lastSchemaTableTree, ColumnList cols) {
+    private static void printFromClauseFor(SchemaTableTree lastSchemaTableTree, ColumnList cols, boolean partOfDuplicateQuery) {
         Map<String, PropertyType> propertyTypeMap = lastSchemaTableTree.getFilteredAllTables().get(lastSchemaTableTree.getSchemaTable().toString());
         ListOrderedSet<String> identifiers = lastSchemaTableTree.getIdentifiers();
         for (String identifier : identifiers) {
@@ -1877,7 +1873,7 @@ public class SchemaTableTree {
                 if (lastSchemaTableTree.shouldSelectProperty(propertyTypeMapEntry.getKey())) {
                     String alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey());
 
-                    if (lastSchemaTableTree.aggregateFunction == null) {
+                    if (lastSchemaTableTree.aggregateFunction == null || partOfDuplicateQuery) {
                         cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias, null);
                     } else {
                         if (lastSchemaTableTree.getAggregateFunction().getRight().isEmpty() ||

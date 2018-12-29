@@ -1,14 +1,10 @@
 package org.umlg.sqlg.test.aggregate;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.Assert;
 import org.junit.Test;
 import org.umlg.sqlg.test.BaseTest;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * @author Pieter Martin (https://github.com/pietermartin)
@@ -46,24 +42,25 @@ public class TestMax extends BaseTest {
 //        Assert.assertFalse(traversal.hasNext());
 //        Assert.assertEquals(7, max, 0);
 //    }
+//
+//    @Test
+//    public void testMax2() {
+//        loadModern();
+//        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().values("age").max();
+//        printTraversalForm(traversal);
+//        checkResults(Arrays.asList(35), traversal);
+//    }
 
     @Test
-    public void testMax2() {
+    public void g_V_repeatXbothX_timesX5X_age_max() {
         loadModern();
-        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().values("age").max();
+        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().repeat(__.both()).times(5).values("age").max();
+//        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().repeat(__.both()).times(5).values("age");
         printTraversalForm(traversal);
-        checkResults(Arrays.asList(35), traversal);
+        while (traversal.hasNext()) {
+            System.out.println(traversal.next());
+        }
+//        checkResults(Arrays.asList(35), traversal);
     }
 
-//    @Test
-    public void testOptimizeOnPropertyExistence() {
-        Vertex a = this.sqlgGraph.addVertex(T.label, "A", "namea", "a");
-        Vertex b = this.sqlgGraph.addVertex(T.label, "B", "nameb", "b");
-        this.sqlgGraph.tx().commit();
-
-        Traversal<Vertex, Vertex> traversal = this.sqlgGraph.traversal().V().has("namea", "a");
-        List<Vertex> vertices = traversal.toList();
-        Assert.assertEquals(1, vertices.size());
-        Assert.assertEquals(a, vertices.get(0));
-    }
 }

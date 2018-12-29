@@ -50,7 +50,7 @@ public class ColumnList {
      * @param drop
      * @param filteredAllTables
      */
-    public ColumnList(SqlgGraph graph, boolean drop, Map<String, Map<String, PropertyType>> filteredAllTables) {
+    ColumnList(SqlgGraph graph, boolean drop, Map<String, Map<String, PropertyType>> filteredAllTables) {
         super();
         this.sqlgGraph = graph;
         this.drop = drop;
@@ -75,6 +75,22 @@ public class ColumnList {
 
     private Column add(String schema, String table, String column, int stepDepth, String alias) {
         return add(schema, table, column, stepDepth, alias, null);
+    }
+
+    public void add(SchemaTableTree stt, String column, String alias) {
+        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias, stt.getAggregateFunction() == null ? null : stt.getAggregateFunction().getLeft());
+    }
+
+    public void add(SchemaTableTree stt, String column, String alias, String aggregateFunction) {
+        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias, aggregateFunction);
+    }
+
+    public void add(SchemaTable st, String column, int stepDepth, String alias) {
+        add(st.getSchema(), st.getTable(), column, stepDepth, alias);
+    }
+
+    public void add(SchemaTable st, String column, int stepDepth, String alias, String aggregateFunction) {
+        add(st.getSchema(), st.getTable(), column, stepDepth, alias, aggregateFunction);
     }
 
     /**
@@ -111,38 +127,8 @@ public class ColumnList {
         }
     }
 
-    /**
-     * add a new column
-     *
-     * @param stt
-     * @param column
-     * @param alias
-     */
-    public void add(SchemaTableTree stt, String column, String alias) {
-        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias, stt.getAggregateFunction() == null ? null : stt.getAggregateFunction().getLeft());
-    }
 
-    public void add(SchemaTableTree stt, String column, String alias, String aggregateFunction) {
-        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias, aggregateFunction);
-    }
-
-    /**
-     * add a new column
-     *
-     * @param st
-     * @param column
-     * @param stepDepth
-     * @param alias
-     */
-    public void add(SchemaTable st, String column, int stepDepth, String alias) {
-        add(st.getSchema(), st.getTable(), column, stepDepth, alias);
-    }
-
-    public void add(SchemaTable st, String column, int stepDepth, String alias, String aggregateFunction) {
-        add(st.getSchema(), st.getTable(), column, stepDepth, alias, aggregateFunction);
-    }
-
-    public void addForeignKey(SchemaTableTree stt, String column, String alias) {
+    void addForeignKey(SchemaTableTree stt, String column, String alias) {
         String[] foreignKeyParts = column.split("\\.");
         Preconditions.checkState(foreignKeyParts.length == 2 || foreignKeyParts.length == 3, "Edge table foreign must be schema.table__I\\O or schema.table.property__I\\O. Found %s", column);
         addForeignKey(stt.getSchemaTable().getSchema(), stt.getSchemaTable().getTable(), column, stt.getStepDepth(), alias, foreignKeyParts);
@@ -204,15 +190,6 @@ public class ColumnList {
         return sb.toString();
     }
 
-    public Pair<String, PropertyType> getPropertyType(String alias) {
-        Column column = this.aliases.get(alias);
-        if (column != null) {
-            return Pair.of(column.column, column.propertyType);
-        } else {
-            return null;
-        }
-    }
-
     public String toString(String prefix) {
         StringBuilder sb = new StringBuilder();
         int i = 1;
@@ -229,6 +206,16 @@ public class ColumnList {
         }
         return sb.toString();
     }
+
+    public Pair<String, PropertyType> getPropertyType(String alias) {
+        Column column = this.aliases.get(alias);
+        if (column != null) {
+            return Pair.of(column.column, column.propertyType);
+        } else {
+            return null;
+        }
+    }
+
 
     public Map<SchemaTable, List<Column>> getInForeignKeys(int stepDepth, SchemaTable schemaTable) {
         return getForeignKeys(stepDepth, schemaTable, Direction.IN);
@@ -264,7 +251,6 @@ public class ColumnList {
         for (Column column : columns.keySet()) {
             column.columnIndex = i++;
         }
-        i++;
     }
 
     public int indexColumnsExcludeForeignKey(int startColumnIndex) {
@@ -274,7 +260,7 @@ public class ColumnList {
                 this.aliases.get(alias).columnIndex = i++;
             }
         }
-        return i++;
+        return i;
     }
 
     /**
@@ -288,7 +274,7 @@ public class ColumnList {
         private final String column;
         private final int stepDepth;
         private PropertyType propertyType;
-        private final boolean ID;
+        private final boolean isID;
         private int columnIndex = -1;
 
         //Foreign key properties
@@ -307,7 +293,7 @@ public class ColumnList {
             this.column = column;
             this.propertyType = propertyType;
             this.stepDepth = stepDepth;
-            this.ID = this.column.equals(Topology.ID);
+            this.isID = this.column.equals(Topology.ID);
             this.aggregateFunction = aggregateFunction;
         }
 
@@ -383,7 +369,7 @@ public class ColumnList {
         }
 
         public boolean isID() {
-            return ID;
+            return isID;
         }
 
         public int getColumnIndex() {

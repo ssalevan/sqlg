@@ -4,7 +4,9 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.lang3.time.StopWatch;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Level;
+import org.apache.log4j.spi.LoggingEvent;
 import org.apache.tinkerpop.gremlin.AbstractGremlinTest;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -284,6 +286,28 @@ public abstract class BaseTest {
                 return String.valueOf(evt.getMessage());
             }
             return null;
+        } finally {
+            l.setLevel(old);
+        }
+
+    }
+
+    protected <E> Pair<List<String>, List<E>> getAllSQL(int skip, final Traversal<?, E> traversal) {
+        org.apache.log4j.Logger l = org.apache.log4j.Logger.getLogger(SqlgSqlExecutor.class);
+        Level old = l.getLevel();
+        try {
+            l.setLevel(Level.DEBUG);
+            List<String> sqls = new ArrayList<>();
+            List<E> result = traversal.toList();
+            List<org.apache.log4j.spi.LoggingEvent> evt = TestAppender.getAll(SqlgSqlExecutor.class.getName());
+            int count = 1;
+            for (LoggingEvent loggingEvent : evt) {
+                if (count++ < skip) {
+                    continue;
+                }
+                sqls.add(String.valueOf(loggingEvent.getMessage()));
+            }
+            return Pair.of(sqls, result);
         } finally {
             l.setLevel(old);
         }
