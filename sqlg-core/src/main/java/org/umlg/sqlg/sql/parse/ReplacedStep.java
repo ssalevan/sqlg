@@ -493,7 +493,6 @@ public class ReplacedStep<S, E> {
             String table = (String) labelHasContainer.getValue();
             SchemaTable schemaTableWithPrefix = SchemaTable.from(sqlgGraph, table).withPrefix(VERTEX_PREFIX);
             if (filteredAllTables.containsKey(schemaTableWithPrefix.toString()) && passesRestrictedProperties(filteredAllTables.get(schemaTableWithPrefix.toString()))) {
-//            if (filteredAllTables.containsKey(schemaTableWithPrefix.toString())) {
                 collectSchemaTableTrees(sqlgGraph, replacedStepDepth, result, groupedIds, schemaTableWithPrefix.toString());
             }
         } else {
@@ -503,7 +502,6 @@ public class ReplacedStep<S, E> {
                         (isEdge && table.substring(table.indexOf(".") + 1).startsWith(EDGE_PREFIX))) {
 
                     if (passesLabelHasContainers(sqlgGraph, isVertex, table) && passesRestrictedProperties(filteredAllTables.get(table))) {
-//                    if (passesLabelHasContainers(sqlgGraph, isVertex, table)) {
                         collectSchemaTableTrees(sqlgGraph, replacedStepDepth, result, groupedIds, table);
                     }
                 }
@@ -517,11 +515,12 @@ public class ReplacedStep<S, E> {
             return true;
         }
         for (String restrictedProperty : this.restrictedProperties) {
-            if (!Graph.Hidden.isHidden(restrictedProperty) && !propertyTypeMap.containsKey(restrictedProperty)) {
-                return false;
+            //or logic, if any property is present its a go
+            if (!Graph.Hidden.isHidden(restrictedProperty) && propertyTypeMap.containsKey(restrictedProperty)) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     private void collectSchemaTableTrees(

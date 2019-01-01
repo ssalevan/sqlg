@@ -12,13 +12,12 @@ import java.util.ListIterator;
  */
 class SqlgCompiledResultListIterator<E> implements ListIterator<E> {
 
-    
-    private final List<E> internalList = new ArrayList<>();
     private final ListIterator<E> internalListIterator;
 
-    public SqlgCompiledResultListIterator(SqlgCompiledResultIterator<E> sqlgCompiledResultIterator) {
-        sqlgCompiledResultIterator.forEachRemaining(e -> this.internalList.add(e));
-        this.internalListIterator = this.internalList.listIterator();
+    SqlgCompiledResultListIterator(SqlgCompiledResultIterator<E> sqlgCompiledResultIterator) {
+        List<E> internalList = new ArrayList<>();
+        sqlgCompiledResultIterator.forEachRemaining(internalList::add);
+        this.internalListIterator = internalList.listIterator();
     }
 
     @Override

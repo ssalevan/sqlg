@@ -9,7 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.NumberHelper;
 import org.umlg.sqlg.step.SqlgAbstractStep;
 import org.umlg.sqlg.structure.SqlgElement;
-import org.umlg.sqlg.structure.SqlgTraverser;
+import org.umlg.sqlg.structure.traverser.SqlgTraverser;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -161,12 +161,6 @@ public abstract class SqlgBranchStepBarrier<S, E, M> extends SqlgAbstractStep<S,
                         }
                     }
                 }
-//                List<Traversal.Admin<S, E>> optionTraversals = this.traversalOptions.get(Pick.none);
-//                for (Traversal.Admin<S, E> optionTraversal : optionTraversals) {
-//                    for (Traverser.Admin<S> start : cachedStarts.values()) {
-//                        optionTraversal.addStart(start);
-//                    }
-//                }
             }
             //Now travers the options. The starts have been set.
             for (M choice : this.traversalOptions.keySet()) {

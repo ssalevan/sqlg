@@ -5,7 +5,6 @@ import org.junit.runners.Suite;
 import org.umlg.sqlg.test.*;
 import org.umlg.sqlg.test.aggregate.TestAggregate;
 import org.umlg.sqlg.test.aggregate.TestGroupCount;
-import org.umlg.sqlg.test.aggregate.TestMax;
 import org.umlg.sqlg.test.batch.*;
 import org.umlg.sqlg.test.branchstep.TestSqlgBranchStep;
 import org.umlg.sqlg.test.complex.TestComplex;
@@ -48,7 +47,9 @@ import org.umlg.sqlg.test.process.dropstep.TestDropStepBarrier;
 import org.umlg.sqlg.test.process.dropstep.TestDropStepTruncate;
 import org.umlg.sqlg.test.properties.TestEscapedValues;
 import org.umlg.sqlg.test.properties.TestPropertyValues;
-import org.umlg.sqlg.test.reducing.TestReducingBarrierStep;
+import org.umlg.sqlg.test.properties.TestValueMap;
+import org.umlg.sqlg.test.reducing.TestReducing;
+import org.umlg.sqlg.test.reducing.TestReducingVertexStep;
 import org.umlg.sqlg.test.remove.TestRemoveEdge;
 import org.umlg.sqlg.test.repeatstep.TestUnoptimizedRepeatStep;
 import org.umlg.sqlg.test.roles.TestReadOnlyRole;
@@ -216,7 +217,6 @@ import org.umlg.sqlg.test.where.TestTraversalFilterStepBarrier;
         TestMatch.class,
         TestSqlgBranchStep.class,
         TestLocalVertexStepWithOrder.class,
-        TestMax.class,
         TestGroupCount.class,
         TestSack.class,
         TestSample.class,
@@ -262,9 +262,11 @@ import org.umlg.sqlg.test.where.TestTraversalFilterStepBarrier;
         TestReadOnlyRole.class,
         TestVarChar.class,
         TestTopologySchemaDeleteMultipleGraphs.class,
-        TestReducingBarrierStep.class,
+        TestReducing.class,
+        TestReducingVertexStep.class,
         TestTraversalAddV.class,
-        TestDataSource.class
+        TestDataSource.class,
+        TestValueMap.class
 })
 public class AllTest {
 

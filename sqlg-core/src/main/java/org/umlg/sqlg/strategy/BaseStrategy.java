@@ -73,6 +73,9 @@ public abstract class BaseStrategy {
             PropertiesStep.class,
             PropertyMapStep.class,
             MaxGlobalStep.class,
+            MinGlobalStep.class,
+            SumGlobalStep.class,
+            MeanGlobalStep.class,
             GroupStep.class
     );
     public static final String PATH_LABEL_SUFFIX = "P~~~";
@@ -213,6 +216,12 @@ public abstract class BaseStrategy {
                 return handlePropertyMapStep(step);
             } else if (step instanceof MaxGlobalStep) {
                 return handleMaxGlobalStep(this.currentReplacedStep, step);
+            } else if (step instanceof MinGlobalStep) {
+                return handleMinGlobalStep(this.currentReplacedStep, step);
+            } else if (step instanceof SumGlobalStep) {
+                return handleSumGlobalStep(this.currentReplacedStep, step);
+            } else if (step instanceof MeanGlobalStep) {
+                return handleMeanGlobalStep(this.currentReplacedStep, step);
             } else if (step instanceof GroupStep) {
                 return handleGroupStep(this.currentReplacedStep, step);
             } else {
@@ -223,9 +232,22 @@ public abstract class BaseStrategy {
     }
 
     private boolean handleMaxGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
-//        MaxGlobalStep<?> maxGlobalStep = (MaxGlobalStep<?>) step;
         replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, Collections.emptyList()));
-//        this.traversal.removeStep(step);
+        return false;
+    }
+
+    private boolean handleMinGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
+        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.min, Collections.emptyList()));
+        return false;
+    }
+
+    private boolean handleSumGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
+        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.sum, Collections.emptyList()));
+        return false;
+    }
+
+    private boolean handleMeanGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
+        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.mean, Collections.emptyList()));
         return false;
     }
 
@@ -266,6 +288,9 @@ public abstract class BaseStrategy {
                 if (one instanceof PropertiesStep && two instanceof ReducingBarrierStep) {
                     PropertiesStep propertiesStep = (PropertiesStep) one;
                     List<String> aggregationFunctionProperty = getRestrictedProperties(propertiesStep);
+                    if (aggregationFunctionProperty == null) {
+                        return false;
+                    }
                     handlePropertiesStep(replacedStep, propertiesStep);
 
                     if (replacedStep.getRestrictedProperties() == null) {
@@ -275,7 +300,17 @@ public abstract class BaseStrategy {
                     }
                     replacedStep.setGroupBy(groupByKeys);
 
-                    replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, aggregationFunctionProperty));
+                    if (two instanceof MaxGlobalStep) {
+                        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, aggregationFunctionProperty));
+                    } else if (two instanceof MinGlobalStep) {
+                        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.min, aggregationFunctionProperty));
+                    } else if (two instanceof SumGlobalStep) {
+                        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.sum, aggregationFunctionProperty));
+                    } else if (two instanceof MeanGlobalStep) {
+                        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.mean, aggregationFunctionProperty));
+                    } else {
+                        throw new IllegalStateException(String.format("Unhandled group by aggregation %s", two.getClass().getSimpleName()));
+                    }
                     SqlgGroupStep<?, ?> sqlgPropertiesStep = new SqlgGroupStep<>(this.traversal, groupByKeys, aggregationFunctionProperty.get(0), isPropertiesStep);
                     //noinspection unchecked
                     TraversalHelper.replaceStep((Step) step, sqlgPropertiesStep, this.traversal);

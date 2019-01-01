@@ -256,7 +256,7 @@ public class SqlgGraph implements Graph {
         SqlgStartupManager sqlgStartupManager = new SqlgStartupManager(sqlgGraph);
         sqlgStartupManager.loadSqlgSchema();
         sqlgGraph.buildVersion = sqlgStartupManager.getBuildVersion();
-        return (G)sqlgGraph;
+        return (G) sqlgGraph;
     }
 
     public static <G extends Graph> G open(final String pathToSqlgProperties) {
@@ -265,13 +265,7 @@ public class SqlgGraph implements Graph {
         Configuration configuration;
         try {
             configuration = new PropertiesConfiguration(pathToSqlgProperties);
-            SqlgDataSource dataSource = createDataSource(configuration);
-            try {
-                return open(configuration, dataSource);
-            } catch (Exception ex) {
-                dataSource.close();
-                throw ex;
-            }
+            return open(configuration);
         } catch (ConfigurationException e) {
             throw new RuntimeException(e);
         }

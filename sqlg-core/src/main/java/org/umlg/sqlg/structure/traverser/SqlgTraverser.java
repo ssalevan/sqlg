@@ -1,4 +1,4 @@
-package org.umlg.sqlg.structure;
+package org.umlg.sqlg.structure.traverser;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -10,7 +10,7 @@ import java.util.HashSet;
  * @author Pieter Martin (https://github.com/pietermartin)
  *         Date: 2017/05/01
  */
-public class SqlgTraverser<T> extends B_LP_O_P_S_SE_SL_Traverser<T> {
+public class SqlgTraverser<T> extends B_LP_O_P_S_SE_SL_Traverser<T> implements ISqlgTraverser {
 
     private long startElementIndex;
     private final boolean requiresSack;
@@ -22,10 +22,12 @@ public class SqlgTraverser<T> extends B_LP_O_P_S_SE_SL_Traverser<T> {
         this.requiresOneBulk = requiresOneBulk;
     }
 
+    @Override
     public void setStartElementIndex(long startElementIndex) {
         this.startElementIndex = startElementIndex;
     }
 
+    @Override
     public long getStartElementIndex() {
         return startElementIndex;
     }

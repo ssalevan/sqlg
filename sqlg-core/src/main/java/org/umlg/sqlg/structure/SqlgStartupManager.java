@@ -174,7 +174,7 @@ class SqlgStartupManager {
      * @return the old version of the graph, or null if there was no graph
      */
     private String createOrUpdateGraph(String version) {
-        String oldVersion = null;
+        String oldVersion;
         Connection conn = this.sqlgGraph.tx().getConnection();
         try {
             DatabaseMetaData metadata = conn.getMetaData();

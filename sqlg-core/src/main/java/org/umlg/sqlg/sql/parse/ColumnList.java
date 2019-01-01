@@ -2,6 +2,7 @@ package org.umlg.sqlg.sql.parse;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
@@ -44,6 +45,11 @@ public class ColumnList {
     private final Map<String, Map<String, PropertyType>> filteredAllTables;
 
     /**
+     * Indicates if any of the Column's have an aggregateFunction
+     */
+    private boolean containsAggregate;
+
+    /**
      * build a new empty column list
      *
      * @param graph
@@ -70,6 +76,7 @@ public class ColumnList {
         Column c = new Column(schema, table, column, this.filteredAllTables.get(schema + "." + table).get(column), stepDepth, aggregateFunction);
         this.columns.put(c, alias);
         this.aliases.put(alias, c);
+        this.containsAggregate = this.containsAggregate || aggregateFunction != null;
         return c;
     }
 
@@ -91,6 +98,10 @@ public class ColumnList {
 
     public void add(SchemaTable st, String column, int stepDepth, String alias, String aggregateFunction) {
         add(st.getSchema(), st.getTable(), column, stepDepth, alias, aggregateFunction);
+    }
+
+    boolean isContainsAggregate() {
+        return containsAggregate;
     }
 
     /**
@@ -142,9 +153,9 @@ public class ColumnList {
      * @param column
      * @return
      */
-    private String getAlias(String schema, String table, String column, int stepDepth) {
+    private String getAlias(String schema, String table, String column, int stepDepth, String aggregateFunction) {
         //PropertyType is not part of equals or hashCode so not needed for the lookup.
-        Column c = new Column(schema, table, column, null, stepDepth, null);
+        Column c = new Column(schema, table, column, null, stepDepth, aggregateFunction);
         return columns.get(c);
     }
 
@@ -155,8 +166,32 @@ public class ColumnList {
      * @param column
      * @return
      */
-    public String getAlias(SchemaTableTree stt, String column) {
-        return getAlias(stt.getSchemaTable(), column, stt.getStepDepth());
+    String getAlias(SchemaTableTree stt, String column) {
+        Pair<String, List<String>> aggregateFunction = stt.getAggregateFunction();
+        if (aggregateFunction == null) {
+            return getAlias(
+                    stt.getSchemaTable(),
+                    column,
+                    stt.getStepDepth(),
+                    null
+            );
+        } else {
+            if (aggregateFunction.getRight().isEmpty() || aggregateFunction.getRight().contains(column)) {
+                return getAlias(
+                        stt.getSchemaTable(),
+                        column,
+                        stt.getStepDepth(),
+                        stt.getAggregateFunction().getLeft()
+                );
+            } else {
+                return getAlias(
+                        stt.getSchemaTable(),
+                        column,
+                        stt.getStepDepth(),
+                        null
+                );
+            }
+        }
     }
 
     /**
@@ -167,20 +202,24 @@ public class ColumnList {
      * @param stepDepth
      * @return
      */
-    public String getAlias(SchemaTable st, String column, int stepDepth) {
-        return getAlias(st.getSchema(), st.getTable(), column, stepDepth);
+    String getAlias(SchemaTable st, String column, int stepDepth, String aggregateFunction) {
+        return getAlias(st.getSchema(), st.getTable(), column, stepDepth, aggregateFunction);
     }
 
-    @Override
-    public String toString() {
+    String toFromStatement(boolean partOfDuplicateQuery) {
         String sep = "";
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<Column, String> columnEntry : this.columns.entrySet()) {
-            Column c = columnEntry.getKey();
-            String alias = columnEntry.getValue();
+        Set<Column> tmpColumns = new LinkedHashSet<>();
+        if (!partOfDuplicateQuery && this.containsAggregate) {
+            this.columns.keySet().stream().filter(c -> !c.isID && !c.isForeignKey).forEach(tmpColumns::add);
+        } else {
+            tmpColumns.addAll(this.columns.keySet());
+        }
+        for (Column c : tmpColumns) {
+            String alias = this.columns.get(c);
             sb.append(sep);
             sep = ",\n\t";
-            c.toString(sb);
+            c.toFromStatement(sb, partOfDuplicateQuery);
             sb.append(" AS ");
             sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
             if (this.drop) {
@@ -190,19 +229,42 @@ public class ColumnList {
         return sb.toString();
     }
 
-    public String toString(String prefix) {
+    @Override
+    public String toString() {
+        return toOuterFromStatement("", false);
+    }
+
+    @SuppressWarnings("Duplicates")
+    String toOuterFromStatement(String prefix, boolean stackContainsAggregate) {
         StringBuilder sb = new StringBuilder();
         int i = 1;
         List<String> fromAliases = this.aliases.keySet().stream().filter(
                 (alias) -> !alias.endsWith(Topology.IN_VERTEX_COLUMN_END) && !alias.endsWith(Topology.OUT_VERTEX_COLUMN_END))
                 .collect(Collectors.toList());
+        boolean first = true;
         for (String alias : fromAliases) {
-            sb.append(prefix);
-            sb.append(".");
-            sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
-            if (i++ < fromAliases.size()) {
-                sb.append(", ");
+            Column c = this.aliases.get(alias);
+            if (stackContainsAggregate && !c.isID && c.aggregateFunction != null) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                first = false;
+                sb.append(c.aggregateFunction);
+                sb.append("(");
+                sb.append(prefix);
+                sb.append(".");
+                sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
+                sb.append(")");
+            } else if (!stackContainsAggregate) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                first = false;
+                sb.append(prefix);
+                sb.append(".");
+                sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
             }
+            i++;
         }
         return sb.toString();
     }
@@ -216,12 +278,11 @@ public class ColumnList {
         }
     }
 
-
-    public Map<SchemaTable, List<Column>> getInForeignKeys(int stepDepth, SchemaTable schemaTable) {
+    Map<SchemaTable, List<Column>> getInForeignKeys(int stepDepth, SchemaTable schemaTable) {
         return getForeignKeys(stepDepth, schemaTable, Direction.IN);
     }
 
-    public Map<SchemaTable, List<Column>> getOutForeignKeys(int stepDepth, SchemaTable schemaTable) {
+    Map<SchemaTable, List<Column>> getOutForeignKeys(int stepDepth, SchemaTable schemaTable) {
         return getForeignKeys(stepDepth, schemaTable, Direction.OUT);
     }
 
@@ -236,7 +297,7 @@ public class ColumnList {
         return result;
     }
 
-    public LinkedHashMap<Column, String> getFor(int stepDepth, SchemaTable schemaTable) {
+    LinkedHashMap<Column, String> getFor(int stepDepth, SchemaTable schemaTable) {
         LinkedHashMap<Column, String> result = new LinkedHashMap<>();
         for (Column column : this.columns.keySet()) {
             if (column.isFor(stepDepth, schemaTable)) {
@@ -246,17 +307,23 @@ public class ColumnList {
         return result;
     }
 
-    public void indexColumns(int startColumnIndex) {
+    void indexColumns(int startColumnIndex) {
         int i = startColumnIndex;
         for (Column column : columns.keySet()) {
-            column.columnIndex = i++;
+            if (!this.containsAggregate) {
+                column.columnIndex = i++;
+            } else if (!column.isID && !column.isForeignKey) {
+                column.columnIndex = i++;
+            }
         }
     }
 
-    public int indexColumnsExcludeForeignKey(int startColumnIndex) {
+    int indexColumnsExcludeForeignKey(int startColumnIndex, boolean stackContainsAggregate) {
         int i = startColumnIndex;
         for (String alias : this.aliases.keySet()) {
-            if (!alias.endsWith(Topology.IN_VERTEX_COLUMN_END) && !alias.endsWith(Topology.OUT_VERTEX_COLUMN_END)) {
+            Column column = this.aliases.get(alias);
+            if (!alias.endsWith(Topology.IN_VERTEX_COLUMN_END) && !alias.endsWith(Topology.OUT_VERTEX_COLUMN_END) &&
+                    (!stackContainsAggregate || (!column.isID && column.aggregateFunction != null))) {
                 this.aliases.get(alias).columnIndex = i++;
             }
         }
@@ -396,7 +463,7 @@ public class ColumnList {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            toString(sb);
+            toFromStatement(sb, false);
             return sb.toString();
         }
 
@@ -405,19 +472,23 @@ public class ColumnList {
          *
          * @param sb
          */
-        void toString(StringBuilder sb) {
-            if (this.aggregateFunction != null) {
-                sb.append(this.aggregateFunction);
+        void toFromStatement(StringBuilder sb, boolean partOfDuplicateQuery) {
+            if (!this.isID && !partOfDuplicateQuery && this.aggregateFunction != null) {
+                sb.append(this.aggregateFunction.equals(GraphTraversal.Symbols.mean) ? "avg" : this.aggregateFunction);
                 sb.append("(");
             }
-            sb.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schema));
+            sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(schema));
             sb.append(".");
-            sb.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(table));
+            sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(table));
             sb.append(".");
-            sb.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(column));
-            if (this.aggregateFunction != null) {
+            sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(column));
+            if (!this.isID && !partOfDuplicateQuery && this.aggregateFunction != null) {
                 sb.append(")");
             }
+        }
+
+        public String getAggregateFunction() {
+            return aggregateFunction;
         }
 
         boolean isFor(int stepDepth, SchemaTable schemaTable) {

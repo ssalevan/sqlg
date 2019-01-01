@@ -22,8 +22,8 @@ public class SqlgCompiledResultIterator<E> implements Iterator<E> {
 
     private final SqlgGraph sqlgGraph;
     private final Set<SchemaTableTree> rootSchemaTableTrees;
-    private boolean forParent = false;
-    private Iterator<SchemaTableTree> rootSchemaTableTreeIterator = EmptyIterator.instance();
+    private boolean forParent;
+    private Iterator<SchemaTableTree> rootSchemaTableTreeIterator;
     private SchemaTableTree currentRootSchemaTableTree;
 
     private Iterator<LinkedList<SchemaTableTree>> distinctQueriesIterator = EmptyIterator.instance();

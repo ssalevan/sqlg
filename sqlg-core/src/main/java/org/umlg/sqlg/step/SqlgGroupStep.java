@@ -6,7 +6,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementExce
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.umlg.sqlg.structure.SqlgElement;
-import org.umlg.sqlg.structure.SqlgGroupByTraverser;
+import org.umlg.sqlg.structure.traverser.SqlgGroupByTraverser;
 
 import java.util.*;
 
@@ -19,23 +19,28 @@ public class SqlgGroupStep<K, V> extends SqlgAbstractStep<SqlgElement, Map<K, V>
     private List<String> groupBy;
     private String aggregateOn;
     private boolean isPropertiesStep;
+    private boolean resetted = false;
 
     public SqlgGroupStep(Traversal.Admin traversal, List<String> groupBy, String aggregateOn, boolean isPropertiesStep) {
         super(traversal);
         this.groupBy = groupBy;
         this.aggregateOn = aggregateOn;
-        this.isPropertiesStep  = isPropertiesStep;
+        this.isPropertiesStep = isPropertiesStep;
     }
 
     @Override
     protected Traverser.Admin<Map<K, V>> processNextStart() throws NoSuchElementException {
-        final SqlgGroupByTraverser<K, V> end = new SqlgGroupByTraverser<>(new HashMap<>());
+        SqlgGroupByTraverser<K, V> end = new SqlgGroupByTraverser<>(new HashMap<>());
         while (this.starts.hasNext()) {
+            if (this.resetted) {
+                this.resetted = false;
+                return end;
+            }
             final Traverser.Admin<SqlgElement> start = this.starts.next();
             SqlgElement sqlgElement = start.get();
             if (this.groupBy.size() == 1) {
                 if (this.groupBy.get(0).equals(T.label.getAccessor())) {
-                    end.put((K)sqlgElement.label(), sqlgElement.value(this.aggregateOn));
+                    end.put((K) sqlgElement.label(), sqlgElement.value(this.aggregateOn));
                 } else {
                     end.put(sqlgElement.value(this.groupBy.get(0)), sqlgElement.value(this.aggregateOn));
                 }
@@ -48,13 +53,18 @@ public class SqlgGroupStep<K, V> extends SqlgAbstractStep<SqlgElement, Map<K, V>
                     keyValues.add(sqlgElement.value(s));
                     keyMap.put(s, keyValues);
                 }
-                end.put((K)keyMap, sqlgElement.value(this.aggregateOn));
+                end.put((K) keyMap, sqlgElement.value(this.aggregateOn));
             }
         }
         if (end.get().isEmpty()) {
             throw FastNoSuchElementException.instance();
         }
         return end;
+    }
+
+    @Override
+    public void reset() {
+        this.resetted = true;
     }
 
 

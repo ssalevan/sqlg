@@ -2,7 +2,8 @@ package org.umlg.sqlg;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
-import org.umlg.sqlg.test.reducing.TestReducingBarrierStep;
+import org.umlg.sqlg.test.reducing.TestReducing;
+import org.umlg.sqlg.test.reducing.TestReducingVertexStep;
 
 /**
  * Date: 2014/07/16
@@ -10,8 +11,8 @@ import org.umlg.sqlg.test.reducing.TestReducingBarrierStep;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-        TestReducingBarrierStep.class,
-//        TestMax.class
+        TestReducing.class,
+        TestReducingVertexStep.class,
 })
 public class AnyTest {
 }

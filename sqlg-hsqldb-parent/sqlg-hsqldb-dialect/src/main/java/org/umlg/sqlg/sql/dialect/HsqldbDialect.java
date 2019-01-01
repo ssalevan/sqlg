@@ -653,6 +653,12 @@ public class HsqldbDialect extends BaseSqlDialect implements SqlBulkDialect {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        sql = new StringBuilder("SET DATABASE SQL AVG SCALE 10;");
+        try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
     }
 

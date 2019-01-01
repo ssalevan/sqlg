@@ -9,7 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequire
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.umlg.sqlg.step.SqlgAbstractStep;
-import org.umlg.sqlg.structure.SqlgTraverser;
+import org.umlg.sqlg.structure.traverser.ISqlgTraverser;
 
 import java.util.*;
 
@@ -50,9 +50,10 @@ public class SqlgLocalStepBarrier<S, E> extends SqlgAbstractStep<S, E> implement
             while (this.localTraversal.hasNext()) {
                 this.results.add(this.localTraversal.nextTraverser());
             }
+            //noinspection Duplicates
             this.results.sort((o1, o2) -> {
-                SqlgTraverser x = (SqlgTraverser) o1;
-                SqlgTraverser y = (SqlgTraverser) o2;
+                ISqlgTraverser x = (ISqlgTraverser) o1;
+                ISqlgTraverser y = (ISqlgTraverser) o2;
                 return Long.compare(x.getStartElementIndex(), y.getStartElementIndex());
             });
             this.resultIterator = this.results.iterator();

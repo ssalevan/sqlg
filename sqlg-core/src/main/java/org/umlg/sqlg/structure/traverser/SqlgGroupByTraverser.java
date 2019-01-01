@@ -1,4 +1,4 @@
-package org.umlg.sqlg.structure;
+package org.umlg.sqlg.structure.traverser;
 
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_Traverser;
 
@@ -8,8 +8,10 @@ import java.util.Map;
  * @author Pieter Martin (https://github.com/pietermartin)
  * Date: 2018/11/25
  */
-public class SqlgGroupByTraverser<K, V> extends O_Traverser<Map<K,V>> {
+public class SqlgGroupByTraverser<K, V> extends O_Traverser<Map<K,V>>  implements ISqlgTraverser {
 
+    private long bulk = 1L;
+    private long startElementIndex;
 
     public SqlgGroupByTraverser(Map<K, V> result) {
         super(result);
@@ -21,7 +23,22 @@ public class SqlgGroupByTraverser<K, V> extends O_Traverser<Map<K,V>> {
 
     @Override
     public long bulk() {
-        return -1;
+        return bulk;
+    }
+
+    @Override
+    public void setBulk(long bulk) {
+        this.bulk = bulk;
+    }
+
+    @Override
+    public void setStartElementIndex(long startElementIndex) {
+        this.startElementIndex = startElementIndex;
+    }
+
+    @Override
+    public long getStartElementIndex() {
+        return startElementIndex;
     }
 
     @Override

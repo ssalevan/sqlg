@@ -27,8 +27,8 @@ import org.umlg.sqlg.structure.*;
 import org.umlg.sqlg.structure.topology.Topology;
 
 import java.lang.reflect.Array;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -111,7 +111,8 @@ public class SqlgUtil {
                         subQueryStack,
                         subQueryDepth == subQueryStacks.size(),
                         idColumnCountMap,
-                        forParent
+                        forParent,
+                        subQueryStacks.get(subQueryStacks.size() - 1).getLast().hasAggregateFunction()
                 );
                 result.addAll(labeledElements);
                 if (subQueryDepth == subQueryStacks.size()) {
@@ -183,7 +184,8 @@ public class SqlgUtil {
             LinkedList<SchemaTableTree> subQueryStack,
             boolean lastQueryStack,
             Map<String, Integer> idColumnCountMap,
-            boolean forParent
+            boolean forParent,
+            boolean hasAggregateFunction
     ) throws SQLException {
 
         List<Emit<E>> result = new ArrayList<>();
@@ -192,7 +194,8 @@ public class SqlgUtil {
             if (!schemaTableTree.getLabels().isEmpty()) {
                 E sqlgElement = null;
                 boolean resultSetWasNull;
-                if (schemaTableTree.isHasIDPrimaryKey() && !schemaTableTree.hasAggregateFunction()) {
+                //If the query has an aggregate function then there is no 'ID'
+                if (schemaTableTree.isHasIDPrimaryKey() && !hasAggregateFunction) {
                     String idProperty = schemaTableTree.labeledAliasId();
                     Integer columnCount = idColumnCountMap.get(idProperty);
                     Long id = resultSet.getLong(columnCount);
@@ -209,7 +212,7 @@ public class SqlgUtil {
                             schemaTableTree.loadEdgeInOutVertices(resultSet, (SqlgEdge) sqlgElement);
                         }
                     }
-                } else {
+                } else if (!schemaTableTree.isHasIDPrimaryKey() && !hasAggregateFunction) {
                     ListOrderedSet<Comparable> identifierObjects = schemaTableTree.loadIdentifierObjects(idColumnCountMap, resultSet);
                     resultSetWasNull = resultSet.wasNull();
                     if (!resultSetWasNull) {
@@ -224,6 +227,22 @@ public class SqlgUtil {
                             schemaTableTree.loadEdgeInOutVertices(resultSet, (SqlgEdge) sqlgElement);
                         }
                     }
+                } else if (schemaTableTree.isHasIDPrimaryKey() && schemaTableTree.hasAggregateFunction()) {
+                    resultSetWasNull = resultSet.wasNull();
+                    if (!resultSetWasNull) {
+                        if (schemaTableTree.getSchemaTable().isVertexTable()) {
+                            String rawLabel = schemaTableTree.getSchemaTable().getTable().substring(VERTEX_PREFIX.length());
+                            sqlgElement = (E) SqlgVertex.of(sqlgGraph, -1L, schemaTableTree.getSchemaTable().getSchema(), rawLabel);
+                            schemaTableTree.loadProperty(resultSet, sqlgElement);
+                        } else {
+                            String rawLabel = schemaTableTree.getSchemaTable().getTable().substring(EDGE_PREFIX.length());
+                            sqlgElement = (E) new SqlgEdge(sqlgGraph, -1L, schemaTableTree.getSchemaTable().getSchema(), rawLabel);
+                            schemaTableTree.loadProperty(resultSet, sqlgElement);
+                            //Do not load in/out vertex foreign keys. Its an aggregate function so its a fake edge.
+                        }
+                    }
+                } else {
+                    resultSetWasNull = true;
                 }
                 if (!resultSetWasNull) {
                     //The following if statement is for for "repeat(traversal()).emit().as('label')"
@@ -231,20 +250,20 @@ public class SqlgUtil {
                     //Only the last node in the subQueryStacks' subQueryStack must get the labels as the label only apply to the exiting element that gets emitted.
                     //Elements that come before the last element in the path must not get the labels.
                     if (schemaTableTree.isEmit() && !lastQueryStack) {
-                        if (forParent) {
+                        if (forParent || (schemaTableTree.hasAggregateFunction() && schemaTableTree.rootSchemaTableTree().isLocalBarrierStep())) {
                             //1 is the parentIndex. This is the id of the incoming parent.
                             result.add(new Emit<>(resultSet.getLong(1), sqlgElement, Collections.emptySet(), schemaTableTree.getStepDepth(), schemaTableTree.getSqlgComparatorHolder()));
                         } else {
                             result.add(new Emit<>(sqlgElement, Collections.emptySet(), schemaTableTree.getStepDepth(), schemaTableTree.getSqlgComparatorHolder()));
                         }
                     } else if (schemaTableTree.isEmit() && lastQueryStack && (count != subQueryStack.size())) {
-                        if (forParent) {
+                        if (forParent || (schemaTableTree.hasAggregateFunction() && schemaTableTree.rootSchemaTableTree().isLocalBarrierStep())) {
                             result.add(new Emit<>(resultSet.getLong(1), sqlgElement, Collections.emptySet(), schemaTableTree.getStepDepth(), schemaTableTree.getSqlgComparatorHolder()));
                         } else {
                             result.add(new Emit<>(sqlgElement, Collections.emptySet(), schemaTableTree.getStepDepth(), schemaTableTree.getSqlgComparatorHolder()));
                         }
                     } else {
-                        if (forParent) {
+                        if (forParent || (schemaTableTree.hasAggregateFunction() && schemaTableTree.rootSchemaTableTree().isLocalBarrierStep())) {
                             result.add(new Emit<>(resultSet.getLong(1), sqlgElement, schemaTableTree.getRealLabels(), schemaTableTree.getStepDepth(), schemaTableTree.getSqlgComparatorHolder()));
                         } else {
                             result.add(new Emit<>(sqlgElement, schemaTableTree.getRealLabels(), schemaTableTree.getStepDepth(), schemaTableTree.getSqlgComparatorHolder()));
@@ -868,7 +887,7 @@ public class SqlgUtil {
                 ResultSet rs = statement.executeQuery("SELECT * FROM INFORMATION_SCHEMA.SYSTEM_USERS where USER_NAME = 'sqlgReadOnly'");
                 if (rs.next()) {
                     try (Statement s = conn.createStatement()) {
-                        s.execute("DROP USER \"sqlgReadOnly\"" );
+                        s.execute("DROP USER \"sqlgReadOnly\"");
                         s.execute("DROP ROLE READ_ONLY");
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
