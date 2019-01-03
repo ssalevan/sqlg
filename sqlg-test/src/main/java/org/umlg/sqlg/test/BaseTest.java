@@ -1,5 +1,6 @@
 package org.umlg.sqlg.test;
 
+import org.apache.commons.collections4.set.ListOrderedSet;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -32,7 +33,9 @@ import org.umlg.sqlg.step.SqlgGraphStep;
 import org.umlg.sqlg.step.SqlgStep;
 import org.umlg.sqlg.step.SqlgVertexStep;
 import org.umlg.sqlg.strategy.SqlgSqlExecutor;
+import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.util.SqlgUtil;
 
 import java.io.IOException;
@@ -324,8 +327,48 @@ public abstract class BaseTest {
         }
     }
 
+    private static void generateModern(final SqlgGraph g) {
+        final Vertex marko = g.addVertex(T.label, "person", "name", "marko", "age", 29);
+        final Vertex vadas = g.addVertex(T.label, "person", "name", "vadas", "age", 27);
+        final Vertex lop = g.addVertex(T.label, "software", "name", "lop", "lang", "java");
+        final Vertex josh = g.addVertex(T.label, "person", "name", "josh", "age", 32);
+        final Vertex ripple = g.addVertex(T.label, "software", "name", "ripple", "lang", "java");
+        final Vertex peter = g.addVertex(T.label, "person", "name", "peter", "age", 35);
+        marko.addEdge("knows", vadas, "weight", 0.5d);
+        marko.addEdge("knows", josh, "weight", 1.0d);
+        marko.addEdge("created", lop, "weight", 0.4d);
+        josh.addEdge("created", ripple, "weight", 1.0d);
+        josh.addEdge("created", lop, "weight", 0.4d);
+        peter.addEdge("created", lop, "weight", 0.2d);
+    }
+
+    private void loadModernUserSuppliedIds(SqlgGraph sqlgGraph) {
+        VertexLabel personVertexLabel = sqlgGraph.getTopology().ensureVertexLabelExist("person", new HashMap<String, PropertyType>() {{
+            put("name", PropertyType.STRING);
+            put("age", PropertyType.INTEGER);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("name")));
+        VertexLabel softwareVertexLabel = sqlgGraph.getTopology().ensureVertexLabelExist("software", new HashMap<String, PropertyType>() {{
+            put("name", PropertyType.STRING);
+            put("lang", PropertyType.STRING);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("name")));
+
+        personVertexLabel.ensureEdgeLabelExist("knows", personVertexLabel, new HashMap<String, PropertyType>() {{
+            put("weight", PropertyType.DOUBLE);
+        }});
+        personVertexLabel.ensureEdgeLabelExist("created", softwareVertexLabel, new HashMap<String, PropertyType>() {{
+            put("weight", PropertyType.DOUBLE);
+        }});
+        this.sqlgGraph.tx().commit();
+        generateModern(this.sqlgGraph);
+        this.sqlgGraph.tx().commit();
+    }
+
     protected void loadModern() {
         loadModern(this.sqlgGraph);
+    }
+
+    protected void loadModernUserSuppliedIds() {
+        loadModernUserSuppliedIds(this.sqlgGraph);
     }
 
     protected void loadGratefulDead(SqlgGraph sqlgGraph) {
