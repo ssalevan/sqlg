@@ -48,6 +48,10 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.OptOut;
 @OptIn(OptIn.SUITE_STRUCTURE_STANDARD)
 @OptIn(OptIn.SUITE_PROCESS_STANDARD)
 
+//This this optout is not needed in 3.4.0
+@OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest",
+        method = "g_V_outXfollowedByX_group_byXsongTypeX_byXbothE_group_byXlabelX_byXweight_sumXX",
+        reason = "Tests assumes empty paths are traversed.")
 @OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategyProcessTest",
         method = "shouldGenerateCorrectTraversers",
         reason = "Tests assumes traversers.")
