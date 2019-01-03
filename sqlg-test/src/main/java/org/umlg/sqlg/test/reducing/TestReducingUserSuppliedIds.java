@@ -484,4 +484,12 @@ public class TestReducingUserSuppliedIds extends BaseTest {
         Assert.assertEquals(7, max, 0);
     }
 
+    @Test
+    public void testMax2() {
+        loadModernUserSuppliedIds();
+        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().values("age").max();
+        printTraversalForm(traversal);
+        checkResults(Arrays.asList(35), traversal);
+    }
+
 }

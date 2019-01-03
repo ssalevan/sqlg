@@ -1,16 +1,17 @@
 package org.umlg.sqlg.test.reducing;
 
+import org.apache.commons.collections4.set.ListOrderedSet;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Test;
+import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.test.BaseTest;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author Pieter Martin (https://github.com/pietermartin)
@@ -20,17 +21,28 @@ public class TestReducingVertexStepUserSuppliedIds extends BaseTest {
 
     @Test
     public void testGroupOverOnePropertyMax() {
+        VertexLabel aVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist("A", new HashMap<String, PropertyType>() {{
+            put("name", PropertyType.STRING);
+            put("age", PropertyType.INTEGER);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("name")));
+        VertexLabel bVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist("B", new HashMap<String, PropertyType>() {{
+            put("uid", PropertyType.STRING);
+            put("name", PropertyType.STRING);
+            put("age", PropertyType.INTEGER);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("uid")));
+        aVertexLabel.ensureEdgeLabelExist("ab", bVertexLabel);
+        this.sqlgGraph.tx().commit();
         Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1", "age", 1);
-        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "name", "b1", "age", 1);
-        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "name", "b1", "age", 2);
-        Vertex b3 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 3);
-        Vertex b4 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 4);
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b1", "age", 1);
+        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b1", "age", 2);
+        Vertex b3 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 3);
+        Vertex b4 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 4);
 
         Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 1);
-        Vertex b21 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 5);
-        Vertex b22 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 6);
-        Vertex b23 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 7);
-        Vertex b24 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 8);
+        Vertex b21 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 5);
+        Vertex b22 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 6);
+        Vertex b23 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 7);
+        Vertex b24 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 8);
 
         a1.addEdge("ab", b1);
         a1.addEdge("ab", b2);
@@ -59,17 +71,30 @@ public class TestReducingVertexStepUserSuppliedIds extends BaseTest {
 
     @Test
     public void testGroupOverOnePropertyLocalMax() {
+        VertexLabel aVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist("A", new HashMap<String, PropertyType>() {{
+            put("name", PropertyType.STRING);
+            put("age", PropertyType.INTEGER);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("name")));
+        VertexLabel bVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist("B", new HashMap<String, PropertyType>() {{
+            put("uid", PropertyType.STRING);
+            put("name", PropertyType.STRING);
+            put("age", PropertyType.INTEGER);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("uid")));
+        aVertexLabel.ensureEdgeLabelExist("ab", bVertexLabel);
+        this.sqlgGraph.tx().commit();
+
+
         Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1", "age", 1);
-        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "name", "b1", "age", 1);
-        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "name", "b1", "age", 2);
-        Vertex b3 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 3);
-        Vertex b4 = this.sqlgGraph.addVertex(T.label, "B", "name", "b2", "age", 4);
+        Vertex b1 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b1", "age", 1);
+        Vertex b2 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b1", "age", 2);
+        Vertex b3 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 3);
+        Vertex b4 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b2", "age", 4);
 
         Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 1);
-        Vertex b21 = this.sqlgGraph.addVertex(T.label, "B", "name", "b21", "age", 1);
-        Vertex b22 = this.sqlgGraph.addVertex(T.label, "B", "name", "b21", "age", 2);
-        Vertex b23 = this.sqlgGraph.addVertex(T.label, "B", "name", "b22", "age", 3);
-        Vertex b24 = this.sqlgGraph.addVertex(T.label, "B", "name", "b22", "age", 4);
+        Vertex b21 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b21", "age", 1);
+        Vertex b22 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b21", "age", 2);
+        Vertex b23 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b22", "age", 3);
+        Vertex b24 = this.sqlgGraph.addVertex(T.label, "B", "uid", UUID.randomUUID().toString(), "name", "b22", "age", 4);
 
         a1.addEdge("ab", b1);
         a1.addEdge("ab", b2);
@@ -107,7 +132,7 @@ public class TestReducingVertexStepUserSuppliedIds extends BaseTest {
 
     @Test
     public void g_VX1_2X_unionXoutE_count__inE_count__outE_weight_sumX() {
-        loadModern();
+        loadModernUserSuppliedIds();
         @SuppressWarnings("unchecked") final Traversal<Vertex, Number> traversal = this.sqlgGraph.traversal()
                 .V(convertToVertexId("marko"), convertToVertexId("vadas"))
                 .union(
@@ -119,23 +144,4 @@ public class TestReducingVertexStepUserSuppliedIds extends BaseTest {
         checkResults(Arrays.asList(3L, 1.9D, 1L), traversal);
     }
 
-    @Test
-    public void g_V_hasLabelXsongX_group_byXnameX_byXproperties_groupCount_byXlabelXX() {
-        loadGratefulDead();
-        final Traversal<Vertex, Map<String, Map<String, Long>>> traversal = this.sqlgGraph.traversal()
-                .V().hasLabel("song")
-                .<String, Map<String, Long>>group().by("name").by(__.properties().groupCount().by(T.label));
-        printTraversalForm(traversal);
-        final Map<String, Map<String, Long>> map = traversal.next();
-        Assert.assertEquals(584, map.size());
-        for (final Map.Entry<String, Map<String, Long>> entry : map.entrySet()) {
-            Assert.assertEquals(entry.getKey().toUpperCase(), entry.getKey());
-            final Map<String, Long> countMap = entry.getValue();
-            Assert.assertEquals(3, countMap.size());
-            Assert.assertEquals(1l, countMap.get("name").longValue());
-            Assert.assertEquals(1l, countMap.get("songType").longValue());
-            Assert.assertEquals(1l, countMap.get("performances").longValue());
-        }
-        Assert.assertFalse(traversal.hasNext());
-    }
 }
