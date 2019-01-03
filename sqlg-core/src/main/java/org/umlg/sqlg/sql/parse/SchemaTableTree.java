@@ -1716,6 +1716,10 @@ public class SchemaTableTree {
             //if user defined identifiers then the regular properties make up the ids.
             if (firstSchemaTableTree.hasIDPrimaryKey) {
                 columnList.add(firstSchemaTable, Topology.ID, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculatedAliasId());
+            } else {
+                for (String identifier : firstSchemaTableTree.getIdentifiers()) {
+                    columnList.add(firstSchemaTable, identifier, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculateAliasPropertyName(identifier));
+                }
             }
             printedId = firstSchemaTable == lastSchemaTable;
         }
@@ -1754,7 +1758,7 @@ public class SchemaTableTree {
                     }
 
                 }
-                constructAllLabeledFromClause(distinctQueryStack, columnList);
+                constructAllLabeledFromClause(distinctQueryStack, columnList, partOfDuplicateQuery);
             } else {
                 if (nextSchemaTableTree.hasIDPrimaryKey) {
                     columnList.add(lastSchemaTable,
@@ -1781,7 +1785,7 @@ public class SchemaTableTree {
                         }
                     }
                 }
-                constructAllLabeledFromClause(distinctQueryStack, columnList);
+                constructAllLabeledFromClause(distinctQueryStack, columnList, partOfDuplicateQuery);
                 constructEmitEdgeIdFromClause(distinctQueryStack, columnList);
             }
         } else if (nextSchemaTableTree != null && lastSchemaTable.getTable().startsWith(VERTEX_PREFIX)) {
@@ -1799,7 +1803,7 @@ public class SchemaTableTree {
                             lastSchemaTable.getSchema() + "." + lastSchemaTable.getTable() + "." + identifier);
                 }
             }
-            constructAllLabeledFromClause(distinctQueryStack, columnList);
+            constructAllLabeledFromClause(distinctQueryStack, columnList, partOfDuplicateQuery);
             printedId = firstSchemaTable == lastSchemaTable;
         }
 
@@ -1809,25 +1813,25 @@ public class SchemaTableTree {
             if (!printedId && lastSchemaTableTree.hasIDPrimaryKey) {
                 printIDFromClauseFor(lastSchemaTableTree, columnList);
             }
-            printFromClauseFor(lastSchemaTableTree, columnList);
+            printFromClauseFor(lastSchemaTableTree, columnList, partOfDuplicateQuery);
 
             if (lastSchemaTableTree.getSchemaTable().isEdgeTable()) {
                 printEdgeInOutVertexIdFromClauseFor(sqlgGraph, firstSchemaTableTree, lastSchemaTableTree, columnList);
             }
 
-            constructAllLabeledFromClause(distinctQueryStack, columnList);
+            constructAllLabeledFromClause(distinctQueryStack, columnList, partOfDuplicateQuery);
             constructEmitFromClause(distinctQueryStack, columnList);
         }
         return columnList.toFromStatement(partOfDuplicateQuery);
     }
 
-    private static void constructAllLabeledFromClause(LinkedList<SchemaTableTree> distinctQueryStack, ColumnList cols) {
+    private static void constructAllLabeledFromClause(LinkedList<SchemaTableTree> distinctQueryStack, ColumnList cols, boolean partOfDuplicateQuery) {
         List<SchemaTableTree> labeled = distinctQueryStack.stream().filter(d -> !d.getLabels().isEmpty()).collect(Collectors.toList());
         for (SchemaTableTree schemaTableTree : labeled) {
             if (schemaTableTree.hasIDPrimaryKey) {
                 printLabeledIDFromClauseFor(schemaTableTree, cols);
             }
-            printLabeledFromClauseFor(schemaTableTree, cols);
+            printLabeledFromClauseFor(schemaTableTree, cols, partOfDuplicateQuery);
             if (schemaTableTree.getSchemaTable().isEdgeTable()) {
                 schemaTableTree.printLabeledEdgeInOutVertexIdFromClauseFor(cols);
             }
@@ -1870,22 +1874,45 @@ public class SchemaTableTree {
         cols.add(lastSchemaTableTree, Topology.ID, lastSchemaTableTree.calculatedAliasId());
     }
 
-    private static void printFromClauseFor(SchemaTableTree lastSchemaTableTree, ColumnList cols) {
+    private static void printFromClauseFor(SchemaTableTree lastSchemaTableTree, ColumnList cols, boolean partOfDuplicateQuery) {
         Map<String, PropertyType> propertyTypeMap = lastSchemaTableTree.getFilteredAllTables().get(lastSchemaTableTree.getSchemaTable().toString());
         ListOrderedSet<String> identifiers = lastSchemaTableTree.getIdentifiers();
         for (String identifier : identifiers) {
             PropertyType propertyType = propertyTypeMap.get(identifier);
-            String alias = lastSchemaTableTree.calculateAliasPropertyName(identifier);
-            cols.add(lastSchemaTableTree, identifier, alias);
-            for (String postFix : propertyType.getPostFixes()) {
-                alias = lastSchemaTableTree.calculateAliasPropertyName(identifier + postFix);
-                cols.add(lastSchemaTableTree, identifier + postFix, alias);
+            if (partOfDuplicateQuery || (lastSchemaTableTree.aggregateFunction != null && lastSchemaTableTree.shouldSelectProperty(identifier))) {
+
+                String alias = cols.getAlias(lastSchemaTableTree, identifier);
+                if (alias == null) {
+                    alias = lastSchemaTableTree.calculateAliasPropertyName(identifier);
+                }
+                cols.add(lastSchemaTableTree, identifier, alias, true);
+                for (String postFix : propertyType.getPostFixes()) {
+                    alias = lastSchemaTableTree.calculateAliasPropertyName(identifier + postFix);
+                    cols.add(lastSchemaTableTree, identifier + postFix, alias, true);
+                }
+
+            } else if (lastSchemaTableTree.aggregateFunction == null) {
+
+                String alias = cols.getAlias(lastSchemaTableTree, identifier);
+                if (alias == null) {
+                    alias = lastSchemaTableTree.calculateAliasPropertyName(identifier);
+                }
+                cols.add(lastSchemaTableTree, identifier, alias, true);
+                for (String postFix : propertyType.getPostFixes()) {
+                    alias = lastSchemaTableTree.calculateAliasPropertyName(identifier + postFix);
+                    cols.add(lastSchemaTableTree, identifier + postFix, alias, true);
+                }
+
             }
         }
         for (Map.Entry<String, PropertyType> propertyTypeMapEntry : propertyTypeMap.entrySet()) {
             if (!identifiers.contains(propertyTypeMapEntry.getKey())) {
                 if (lastSchemaTableTree.shouldSelectProperty(propertyTypeMapEntry.getKey())) {
-                    String alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey());
+
+                    String alias = cols.getAlias(lastSchemaTableTree, propertyTypeMapEntry.getKey());
+                    if (alias == null) {
+                        alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey());
+                    }
 
                     if (lastSchemaTableTree.aggregateFunction == null) {
                         cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias, null);
@@ -1929,11 +1956,11 @@ public class SchemaTableTree {
 
     }
 
-    private static void printLabeledFromClauseFor(SchemaTableTree lastSchemaTableTree, ColumnList cols) {
+    private static void printLabeledFromClauseFor(SchemaTableTree lastSchemaTableTree, ColumnList cols, boolean partOfDuplicateQuery) {
         Map<String, PropertyType> propertyTypeMap = lastSchemaTableTree.getFilteredAllTables().get(lastSchemaTableTree.getSchemaTable().toString());
         for (Map.Entry<String, PropertyType> propertyTypeMapEntry : propertyTypeMap.entrySet()) {
             String col = propertyTypeMapEntry.getKey();
-            if (lastSchemaTableTree.shouldSelectProperty(col)) {
+            if ((partOfDuplicateQuery && lastSchemaTableTree.getIdentifiers().contains(col)) || lastSchemaTableTree.shouldSelectProperty(col)) {
                 String alias = cols.getAlias(lastSchemaTableTree, col);
                 if (alias == null) {
                     alias = lastSchemaTableTree.calculateLabeledAliasPropertyName(propertyTypeMapEntry.getKey());

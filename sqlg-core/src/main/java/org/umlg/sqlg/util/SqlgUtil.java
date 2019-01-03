@@ -212,6 +212,20 @@ public class SqlgUtil {
                             schemaTableTree.loadEdgeInOutVertices(resultSet, (SqlgEdge) sqlgElement);
                         }
                     }
+                } else if (schemaTableTree.isHasIDPrimaryKey() && schemaTableTree.hasAggregateFunction()) {
+                    resultSetWasNull = resultSet.wasNull();
+                    if (!resultSetWasNull) {
+                        if (schemaTableTree.getSchemaTable().isVertexTable()) {
+                            String rawLabel = schemaTableTree.getSchemaTable().getTable().substring(VERTEX_PREFIX.length());
+                            sqlgElement = (E) SqlgVertex.of(sqlgGraph, -1L, schemaTableTree.getSchemaTable().getSchema(), rawLabel);
+                            schemaTableTree.loadProperty(resultSet, sqlgElement);
+                        } else {
+                            String rawLabel = schemaTableTree.getSchemaTable().getTable().substring(EDGE_PREFIX.length());
+                            sqlgElement = (E) new SqlgEdge(sqlgGraph, -1L, schemaTableTree.getSchemaTable().getSchema(), rawLabel);
+                            schemaTableTree.loadProperty(resultSet, sqlgElement);
+                            //Do not load in/out vertex foreign keys. Its an aggregate function so its a fake edge.
+                        }
+                    }
                 } else if (!schemaTableTree.isHasIDPrimaryKey() && !hasAggregateFunction) {
                     ListOrderedSet<Comparable> identifierObjects = schemaTableTree.loadIdentifierObjects(idColumnCountMap, resultSet);
                     resultSetWasNull = resultSet.wasNull();
@@ -227,7 +241,7 @@ public class SqlgUtil {
                             schemaTableTree.loadEdgeInOutVertices(resultSet, (SqlgEdge) sqlgElement);
                         }
                     }
-                } else if (schemaTableTree.isHasIDPrimaryKey() && schemaTableTree.hasAggregateFunction()) {
+                } else if (!schemaTableTree.isHasIDPrimaryKey() && schemaTableTree.hasAggregateFunction()) {
                     resultSetWasNull = resultSet.wasNull();
                     if (!resultSetWasNull) {
                         if (schemaTableTree.getSchemaTable().isVertexTable()) {
@@ -238,7 +252,7 @@ public class SqlgUtil {
                             String rawLabel = schemaTableTree.getSchemaTable().getTable().substring(EDGE_PREFIX.length());
                             sqlgElement = (E) new SqlgEdge(sqlgGraph, -1L, schemaTableTree.getSchemaTable().getSchema(), rawLabel);
                             schemaTableTree.loadProperty(resultSet, sqlgElement);
-                            //Do not load in/out vertex foreign keys. Its an aggregate function so its a fake edge.
+                            schemaTableTree.loadEdgeInOutVertices(resultSet, (SqlgEdge) sqlgElement);
                         }
                     }
                 } else {

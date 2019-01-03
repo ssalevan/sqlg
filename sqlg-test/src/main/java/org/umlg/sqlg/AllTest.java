@@ -49,6 +49,7 @@ import org.umlg.sqlg.test.properties.TestEscapedValues;
 import org.umlg.sqlg.test.properties.TestPropertyValues;
 import org.umlg.sqlg.test.properties.TestValueMap;
 import org.umlg.sqlg.test.reducing.TestReducing;
+import org.umlg.sqlg.test.reducing.TestReducingUserSuppliedIds;
 import org.umlg.sqlg.test.reducing.TestReducingVertexStep;
 import org.umlg.sqlg.test.remove.TestRemoveEdge;
 import org.umlg.sqlg.test.repeatstep.TestUnoptimizedRepeatStep;
@@ -264,6 +265,7 @@ import org.umlg.sqlg.test.where.TestTraversalFilterStepBarrier;
         TestTopologySchemaDeleteMultipleGraphs.class,
         TestReducing.class,
         TestReducingVertexStep.class,
+        TestReducingUserSuppliedIds.class,
         TestTraversalAddV.class,
         TestDataSource.class,
         TestValueMap.class

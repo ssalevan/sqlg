@@ -72,8 +72,8 @@ public class ColumnList {
      * @param stepDepth
      * @param alias
      */
-    private Column add(String schema, String table, String column, int stepDepth, String alias, String aggregateFunction) {
-        Column c = new Column(schema, table, column, this.filteredAllTables.get(schema + "." + table).get(column), stepDepth, aggregateFunction);
+    private Column add(String schema, String table, String column, int stepDepth, String alias, String aggregateFunction, boolean isIdentifier) {
+        Column c = new Column(schema, table, column, this.filteredAllTables.get(schema + "." + table).get(column), stepDepth, aggregateFunction, isIdentifier);
         this.columns.put(c, alias);
         this.aliases.put(alias, c);
         this.containsAggregate = this.containsAggregate || aggregateFunction != null;
@@ -81,7 +81,11 @@ public class ColumnList {
     }
 
     private Column add(String schema, String table, String column, int stepDepth, String alias) {
-        return add(schema, table, column, stepDepth, alias, null);
+        return add(schema, table, column, stepDepth, alias, null, false);
+    }
+
+    public void add(SchemaTableTree stt, String column, String alias, boolean isIdentifier) {
+        add(stt.getSchemaTable().getSchema(), stt.getSchemaTable().getTable(), column, stt.getStepDepth(), alias, stt.getAggregateFunction() == null ? null : stt.getAggregateFunction().getLeft(), isIdentifier);
     }
 
     public void add(SchemaTableTree stt, String column, String alias) {
@@ -97,7 +101,7 @@ public class ColumnList {
     }
 
     public void add(SchemaTable st, String column, int stepDepth, String alias, String aggregateFunction) {
-        add(st.getSchema(), st.getTable(), column, stepDepth, alias, aggregateFunction);
+        add(st.getSchema(), st.getTable(), column, stepDepth, alias, aggregateFunction, false);
     }
 
     boolean isContainsAggregate() {
@@ -115,7 +119,7 @@ public class ColumnList {
      * @param foreignKeyParts The foreign key column broken up into its parts. schema, table and for user supplied identifiers the property name.
      */
     private void addForeignKey(String schema, String table, String column, int stepDepth, String alias, String[] foreignKeyParts) {
-        Column c = add(schema, table, column, stepDepth, alias, null);
+        Column c = add(schema, table, column, stepDepth, alias, null, false);
         c.isForeignKey = true;
         if (foreignKeyParts.length == 3) {
             Map<String, PropertyType> properties = this.filteredAllTables.get(foreignKeyParts[0] + "." + Topology.VERTEX_PREFIX + foreignKeyParts[1]);
@@ -155,7 +159,7 @@ public class ColumnList {
      */
     private String getAlias(String schema, String table, String column, int stepDepth, String aggregateFunction) {
         //PropertyType is not part of equals or hashCode so not needed for the lookup.
-        Column c = new Column(schema, table, column, null, stepDepth, aggregateFunction);
+        Column c = new Column(schema, table, column, null, stepDepth, aggregateFunction, false);
         return columns.get(c);
     }
 
@@ -244,7 +248,7 @@ public class ColumnList {
         boolean first = true;
         for (String alias : fromAliases) {
             Column c = this.aliases.get(alias);
-            if (stackContainsAggregate && !c.isID && c.aggregateFunction != null) {
+            if (stackContainsAggregate && !c.isID && !c.isIdentifier && c.aggregateFunction != null) {
                 if (!first) {
                     sb.append(", ");
                 }
@@ -323,7 +327,7 @@ public class ColumnList {
         for (String alias : this.aliases.keySet()) {
             Column column = this.aliases.get(alias);
             if (!alias.endsWith(Topology.IN_VERTEX_COLUMN_END) && !alias.endsWith(Topology.OUT_VERTEX_COLUMN_END) &&
-                    (!stackContainsAggregate || (!column.isID && column.aggregateFunction != null))) {
+                    (!stackContainsAggregate || (!column.isID && !column.isIdentifier && column.aggregateFunction != null))) {
                 this.aliases.get(alias).columnIndex = i++;
             }
         }
@@ -353,7 +357,9 @@ public class ColumnList {
 
         private String aggregateFunction;
 
-        Column(String schema, String table, String column, PropertyType propertyType, int stepDepth, String aggregateFunction) {
+        private boolean isIdentifier;
+
+        Column(String schema, String table, String column, PropertyType propertyType, int stepDepth, String aggregateFunction, boolean isIdentifier) {
             super();
             this.schema = schema;
             this.table = table;
@@ -362,6 +368,11 @@ public class ColumnList {
             this.stepDepth = stepDepth;
             this.isID = this.column.equals(Topology.ID);
             this.aggregateFunction = aggregateFunction;
+            this.isIdentifier = isIdentifier;
+            if (!((isIdentifier && !isID) || (!isIdentifier && isID) || !isIdentifier && !isID)) {
+                System.out.println("");
+            }
+            Preconditions.checkState((isIdentifier && !isID) || (!isIdentifier && isID)  || (!isIdentifier && !isID));
         }
 
         @Override
@@ -372,7 +383,6 @@ public class ColumnList {
             result = prime * result + ((column == null) ? 0 : column.hashCode());
             result = prime * result + ((schema == null) ? 0 : schema.hashCode());
             result = prime * result + ((table == null) ? 0 : table.hashCode());
-            result = prime * result + ((aggregateFunction == null) ? 0 : aggregateFunction.hashCode());
             result = prime * result + stepDepth;
             return result;
         }
@@ -402,11 +412,6 @@ public class ColumnList {
                 if (other.table != null)
                     return false;
             } else if (!table.equals(other.table))
-                return false;
-            if (aggregateFunction == null) {
-                if (other.aggregateFunction != null)
-                    return false;
-            } else if (!aggregateFunction.equals(other.aggregateFunction))
                 return false;
             return this.stepDepth == other.stepDepth;
         }

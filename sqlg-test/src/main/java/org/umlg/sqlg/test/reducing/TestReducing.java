@@ -20,10 +20,10 @@ public class TestReducing extends BaseTest {
     @SuppressWarnings("Duplicates")
     @Test
     public void testMax() {
-        this.sqlgGraph.addVertex(T.label, "Person", "age", 1);
-        this.sqlgGraph.addVertex(T.label, "Person", "age", 2);
-        this.sqlgGraph.addVertex(T.label, "Person", "age", 3);
-        this.sqlgGraph.addVertex(T.label, "Person", "age", 0);
+        this.sqlgGraph.addVertex(T.label, "Person", "age", 1, "x", 1);
+        this.sqlgGraph.addVertex(T.label, "Person", "age", 2, "x", 1);
+        this.sqlgGraph.addVertex(T.label, "Person", "age", 3, "x", 1);
+        this.sqlgGraph.addVertex(T.label, "Person", "age", 0, "x", 1);
         this.sqlgGraph.tx().commit();
 
         Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().hasLabel("Person").values("age").max();
@@ -464,6 +464,22 @@ public class TestReducing extends BaseTest {
         Assert.assertEquals(777982, subMap.get("followedBy").intValue());
 //        Assert.assertEquals(0, subMap.get("writtenBy").intValue());
 //        Assert.assertEquals(0, subMap.get("sungBy").intValue());
+    }
+
+    @Test
+    public void testSummingNothing() {
+        this.sqlgGraph.addVertex(T.label, "A", "name", "a1", "age", 1);
+        this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 1);
+        this.sqlgGraph.addVertex(T.label, "A", "name", "a3", "age", 1);
+        this.sqlgGraph.addVertex(T.label, "A", "name", "a4", "age", 1);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Map<String, Integer>> traversal = this.sqlgGraph.traversal()
+                .V().has("name", "a5")
+                .<String, Integer>group().by(T.label).by(__.values("age").sum());
+        printTraversalForm(traversal);
+        Assert.assertTrue(traversal.hasNext());
+        System.out.println(traversal.next());
     }
 
 }

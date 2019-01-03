@@ -1,6 +1,7 @@
 package org.umlg.sqlg.test.usersuppliedpk.topology;
 
 import org.apache.commons.collections4.set.ListOrderedSet;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -11,10 +12,7 @@ import org.umlg.sqlg.structure.topology.EdgeLabel;
 import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.test.BaseTest;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author Pieter Martin (https://github.com/pietermartin)
@@ -178,6 +176,72 @@ public class TestSimpleJoinGremlin extends BaseTest {
         Assert.assertEquals(2, vertices.size());
         Assert.assertTrue(vertices.contains(b1));
         Assert.assertTrue(vertices.contains(b2));
+    }
+
+    @Test
+    public void testDuplicatePathWithValues() {
+        VertexLabel person = this.sqlgGraph.getTopology().ensureVertexLabelExist(
+                "Person",
+                new HashMap<String, PropertyType>(){{
+                    put("name", PropertyType.varChar(100));
+                    put("surname", PropertyType.varChar(100));
+                }},
+                ListOrderedSet.listOrderedSet(Arrays.asList("name", "surname"))
+        );
+        @SuppressWarnings("unused")
+        EdgeLabel livesAt = person.ensureEdgeLabelExist(
+                "loves",
+                person,
+                new HashMap<String, PropertyType>() {{
+                    put("country", PropertyType.STRING);
+                }}
+        );
+        this.sqlgGraph.tx().commit();
+
+        Vertex person1 = this.sqlgGraph.addVertex(T.label, "Person", "name", "John", "surname", "Smith");
+        Vertex person2 = this.sqlgGraph.addVertex(T.label, "Person", "name", "Suzi", "surname", "Lovenot");
+        person1.addEdge("loves", person2);
+        person2.addEdge("loves", person1);
+        this.sqlgGraph.tx().commit();
+
+        List<String> names = this.sqlgGraph.traversal().V().hasLabel("Person").out().<String>values("name").toList();
+        Assert.assertEquals(2, names.size());
+        names = this.sqlgGraph.traversal().V().hasLabel("Person").in().<String>values("name").toList();
+        Assert.assertEquals(2, names.size());
+
+        names = this.sqlgGraph.traversal().V().hasLabel("Person").outE().inV().<String>values("name").toList();
+        Assert.assertEquals(2, names.size());
+
+        names = this.sqlgGraph.traversal().V().hasLabel("Person").outE().outV().<String>values("name").toList();
+        Assert.assertEquals(2, names.size());
+    }
+
+    @Test
+    public void testDuplicatePathQuery2() {
+        VertexLabel aVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist("A", new HashMap<String, PropertyType>() {{
+            put("name", PropertyType.STRING);
+            put("age", PropertyType.INTEGER);
+        }}, ListOrderedSet.listOrderedSet(Collections.singletonList("name")));
+        aVertexLabel.ensureEdgeLabelExist("aa", aVertexLabel);
+        this.sqlgGraph.tx().commit();
+
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1", "age", 1);
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 5);
+        Vertex a3 = this.sqlgGraph.addVertex(T.label, "A", "name", "a3", "age", 7);
+        Vertex a4 = this.sqlgGraph.addVertex(T.label, "A", "name", "a4", "age", 5);
+        a1.addEdge("aa", a2);
+        a1.addEdge("aa", a3);
+        a1.addEdge("aa", a4);
+        a2.addEdge("aa", a1);
+        a2.addEdge("aa", a3);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V(a1).out("aa").out("aa").values("age");
+        printTraversalForm(traversal);
+        List<Integer> ages = traversal.toList();
+        Assert.assertEquals(2, ages.size());
+        Assert.assertTrue(ages.contains(1));
+        Assert.assertTrue(ages.contains(7));
     }
 
 }

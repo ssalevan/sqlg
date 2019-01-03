@@ -3,6 +3,7 @@ package org.umlg.sqlg.step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.umlg.sqlg.structure.SqlgElement;
@@ -40,7 +41,12 @@ public class SqlgGroupStep<K, V> extends SqlgAbstractStep<SqlgElement, Map<K, V>
             SqlgElement sqlgElement = start.get();
             if (this.groupBy.size() == 1) {
                 if (this.groupBy.get(0).equals(T.label.getAccessor())) {
-                    end.put((K) sqlgElement.label(), sqlgElement.value(this.aggregateOn));
+                    Property property = sqlgElement.property(this.aggregateOn);
+                    if (property.isPresent()) {
+                        end.put((K) sqlgElement.label(), sqlgElement.value(this.aggregateOn));
+                    } else {
+                        end.put((K) sqlgElement.label(), (V)Integer.valueOf(1));
+                    }
                 } else {
                     end.put(sqlgElement.value(this.groupBy.get(0)), sqlgElement.value(this.aggregateOn));
                 }
