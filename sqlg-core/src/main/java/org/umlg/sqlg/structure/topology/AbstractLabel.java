@@ -40,7 +40,7 @@ public abstract class AbstractLabel implements TopologyInf {
     private PropertyColumn distributionPropertyColumn;
     private PropertyColumn uncommittedDistributionPropertyColumn;
     private AbstractLabel distributionCollocateAbstractLabel;
-    private AbstractLabel uncommittedDistributionCollocateAbstractLabel;
+    private AbstractLabel uncommittedDistributionColocateAbstractLabel;
     private int shardCount = -1;
     private int uncommittedShardCount = -1;
 
@@ -618,6 +618,7 @@ public abstract class AbstractLabel implements TopologyInf {
     void addDistributionColocate(Vertex colocate) {
         Preconditions.checkState(this.getSchema().getTopology().isSqlWriteLockHeldByCurrentThread());
         this.distributionCollocateAbstractLabel = getSchema().getVertexLabel(colocate.value(SQLG_SCHEMA_VERTEX_LABEL_NAME)).orElseThrow(() -> new IllegalStateException("Distribution Co-locate vertex label %s not found", colocate.value(SQLG_SCHEMA_VERTEX_LABEL_NAME)));
+
     }
 
     void addDistributionProperty(Vertex distributionProperty) {
@@ -720,8 +721,8 @@ public abstract class AbstractLabel implements TopologyInf {
         if (this.uncommittedDistributionPropertyColumn != null) {
             this.distributionPropertyColumn = this.uncommittedDistributionPropertyColumn;
         }
-        if (this.uncommittedDistributionCollocateAbstractLabel != null) {
-            this.distributionCollocateAbstractLabel = this.uncommittedDistributionCollocateAbstractLabel;
+        if (this.uncommittedDistributionColocateAbstractLabel != null) {
+            this.distributionCollocateAbstractLabel = this.uncommittedDistributionColocateAbstractLabel;
         }
         if (this.uncommittedShardCount != -1) {
             this.shardCount = this.uncommittedShardCount;
@@ -759,7 +760,7 @@ public abstract class AbstractLabel implements TopologyInf {
             entry.getValue().afterRollback();
         }
         this.uncommittedDistributionPropertyColumn = null;
-        this.uncommittedDistributionCollocateAbstractLabel = null;
+        this.uncommittedDistributionColocateAbstractLabel = null;
     }
 
     JsonNode toJson() {
@@ -805,8 +806,8 @@ public abstract class AbstractLabel implements TopologyInf {
                 uncommittedDistributionPropertyColumnObjectNode = this.uncommittedDistributionPropertyColumn.toNotifyJson();
             }
             ObjectNode uncommittedDistributionColocateAbstractLabelObjectNode = null;
-            if (this.uncommittedDistributionCollocateAbstractLabel != null) {
-                String colocateLabel = this.uncommittedDistributionCollocateAbstractLabel.label;
+            if (this.uncommittedDistributionColocateAbstractLabel != null) {
+                String colocateLabel = this.uncommittedDistributionColocateAbstractLabel.label;
                 uncommittedDistributionColocateAbstractLabelObjectNode = new ObjectNode(Topology.OBJECT_MAPPER.getNodeFactory());
                 uncommittedDistributionColocateAbstractLabelObjectNode.put("colocateLabel", colocateLabel);
             }
@@ -838,7 +839,7 @@ public abstract class AbstractLabel implements TopologyInf {
                 result.set("uncommittedDistributionPropertyColumn", uncommittedDistributionPropertyColumnObjectNode);
             }
             if (uncommittedDistributionColocateAbstractLabelObjectNode != null) {
-                result.set("uncommittedDistributionCollocateAbstractLabel", uncommittedDistributionColocateAbstractLabelObjectNode);
+                result.set("uncommittedDistributionColocateAbstractLabel", uncommittedDistributionColocateAbstractLabelObjectNode);
             }
             if (uncommittedShardCountObjectNode != null) {
                 result.set("uncommittedShardCount", uncommittedShardCountObjectNode);
@@ -928,7 +929,7 @@ public abstract class AbstractLabel implements TopologyInf {
         if (distributionPropertyColumnObjectNode != null) {
             this.distributionPropertyColumn = PropertyColumn.fromNotifyJson(this, distributionPropertyColumnObjectNode);
         }
-        ObjectNode distributionColocateAbstractLabelObjectNode = (ObjectNode) vertexLabelJson.get("uncommittedDistributionCollocateAbstractLabel");
+        ObjectNode distributionColocateAbstractLabelObjectNode = (ObjectNode) vertexLabelJson.get("uncommittedDistributionColocateAbstractLabel");
         if (distributionColocateAbstractLabelObjectNode != null) {
             Optional<VertexLabel> colocateVertexLabelOpt = getSchema().getVertexLabel(distributionColocateAbstractLabelObjectNode.get("colocateLabel").asText());
             Preconditions.checkState(colocateVertexLabelOpt.isPresent());
@@ -1132,7 +1133,7 @@ public abstract class AbstractLabel implements TopologyInf {
                 TopologyManager.distributeAbstractLabel(this.sqlgGraph, this, shardCount, distributionPropertyColumn, colocate);
                 distribute(shardCount, distributionPropertyColumn, colocate);
                 this.uncommittedDistributionPropertyColumn = distributionPropertyColumn;
-                this.uncommittedDistributionCollocateAbstractLabel = colocate;
+                this.uncommittedDistributionColocateAbstractLabel = colocate;
                 this.uncommittedShardCount = shardCount;
             }
         }
@@ -1154,7 +1155,7 @@ public abstract class AbstractLabel implements TopologyInf {
         if (this.distributionCollocateAbstractLabel != null) {
             return this.distributionCollocateAbstractLabel;
         } else {
-            return this.uncommittedDistributionCollocateAbstractLabel;
+            return this.uncommittedDistributionColocateAbstractLabel;
 
         }
     }

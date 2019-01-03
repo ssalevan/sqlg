@@ -152,7 +152,6 @@ public class TestSharding extends BaseTest {
         Assert.assertEquals(8, this.sqlgGraph.getTopology().getSchema("A").get().getVertexLabel("B").get().getShardCount());
     }
 
-
     @Test
     public void testShardingEdge() throws Exception {
         VertexLabel aVertexLabel = this.sqlgGraph.getTopology().ensureVertexLabelExist(
