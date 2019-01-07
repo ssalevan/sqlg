@@ -218,36 +218,36 @@ public class TestReducing extends BaseTest {
         Map<Map<String, List<String>>, Integer> result = traversal.next();
         System.out.println(result);
 
-        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>(){{
+        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("C"));
             put("name", Arrays.asList("A"));
         }}));
-        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>(){{
+        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("D"));
             put("name", Arrays.asList("B"));
         }}));
-        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>(){{
+        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("E"));
             put("name", Arrays.asList("B"));
         }}));
-        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>(){{
+        Assert.assertTrue(result.containsKey(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("E"));
             put("name", Arrays.asList("C"));
         }}));
 
-        Assert.assertEquals(3, result.get(new HashMap<String, List<String>>(){{
+        Assert.assertEquals(3, result.get(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("C"));
             put("name", Arrays.asList("A"));
         }}), 0);
-        Assert.assertEquals(2, result.get(new HashMap<String, List<String>>(){{
+        Assert.assertEquals(2, result.get(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("D"));
             put("name", Arrays.asList("B"));
         }}), 0);
-        Assert.assertEquals(4, result.get(new HashMap<String, List<String>>(){{
+        Assert.assertEquals(4, result.get(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("E"));
             put("name", Arrays.asList("B"));
         }}), 0);
-        Assert.assertEquals(5, result.get(new HashMap<String, List<String>>(){{
+        Assert.assertEquals(5, result.get(new HashMap<String, List<String>>() {{
             put("surname", Arrays.asList("E"));
             put("name", Arrays.asList("C"));
         }}), 0);
@@ -356,15 +356,42 @@ public class TestReducing extends BaseTest {
         Assert.assertFalse(traversal.hasNext());
     }
 
+    @Test
+    public void testGroupByDuplicatePaths() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1", "age", 1);
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 2);
+        Vertex a3 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 3);
+        Vertex a4 = this.sqlgGraph.addVertex(T.label, "A", "name", "a3", "age", 4);
+        Vertex a5 = this.sqlgGraph.addVertex(T.label, "A", "name", "a3", "age", 5);
+        Vertex a6 = this.sqlgGraph.addVertex(T.label, "A", "name", "a3", "age", 6);
+        a1.addEdge("aa", a2);
+        a1.addEdge("aa", a3);
+        a1.addEdge("aa", a4);
+        a1.addEdge("aa", a5);
+        a1.addEdge("aa", a6);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Map<String, Integer>> traversal = this.sqlgGraph.traversal().V(a1).out().<String, Integer>group().by("name").by(__.values("age").max());
+        printTraversalForm(traversal);
+        Assert.assertTrue(traversal.hasNext());
+        Map<String, Integer> result = traversal.next();
+        Assert.assertEquals(2, result.size());
+        Assert.assertTrue(result.containsKey("a2"));
+        Assert.assertEquals(3, result.get("a2"), 0);
+        Assert.assertTrue(result.containsKey("a3"));
+        Assert.assertEquals(6, result.get("a3"), 0);
+    }
+
     @SuppressWarnings("ConstantConditions")
     @Test
-    public void g_V_out_out() { loadModern();
+    public void g_V_out_out() {
+        loadModern();
         Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V().hasLabel("person").out().out().values("age").max();
         printTraversalForm(traversal);
         Assert.assertTrue(traversal.hasNext());
         Number m = traversal.next();
         Assert.assertTrue(m instanceof Double);
-        Assert.assertEquals(Double.NaN, (Double)m, 0D);
+        Assert.assertEquals(Double.NaN, (Double) m, 0D);
         Assert.assertFalse(traversal.hasNext());
     }
 
@@ -377,7 +404,7 @@ public class TestReducing extends BaseTest {
         Assert.assertTrue(traversal.hasNext());
         Number m = traversal.next();
         Assert.assertTrue(m instanceof Double);
-        Assert.assertEquals(Double.NaN, (Double)m, 0D);
+        Assert.assertEquals(Double.NaN, (Double) m, 0D);
         Assert.assertFalse(traversal.hasNext());
     }
 
@@ -431,7 +458,7 @@ public class TestReducing extends BaseTest {
     @Test
     public void g_V_outXfollowedByX_group_byXsongTypeX_byXbothE_group_byXlabelX_byXweight_sumXX() {
         loadGratefulDead();
-        final Traversal<Vertex, Map<String, Map<String, Number>>> traversal =  this.sqlgGraph.traversal()
+        final Traversal<Vertex, Map<String, Map<String, Number>>> traversal = this.sqlgGraph.traversal()
                 .V().out("followedBy")
                 .<String, Map<String, Number>>group()
                 .by("songType")
@@ -480,6 +507,66 @@ public class TestReducing extends BaseTest {
         printTraversalForm(traversal);
         Assert.assertTrue(traversal.hasNext());
         System.out.println(traversal.next());
+    }
+
+    @Test
+    public void testCount() {
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.tx().commit();
+        Traversal<Vertex, Long> traversal = this.sqlgGraph.traversal().V().count();
+        printTraversalForm(traversal);
+        Assert.assertEquals(4, traversal.next(), 0);
+    }
+
+    @Test
+    public void testCountMultipleLabels() {
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "A");
+        this.sqlgGraph.addVertex(T.label, "B", "name", "b1");
+        this.sqlgGraph.addVertex(T.label, "B", "name", "b2");
+        this.sqlgGraph.addVertex(T.label, "B", "name", "b3");
+        this.sqlgGraph.addVertex(T.label, "B", "name", "b4");
+        this.sqlgGraph.tx().commit();
+        Traversal<Vertex, Long> traversal = this.sqlgGraph.traversal().V().count();
+        printTraversalForm(traversal);
+        Assert.assertEquals(8, traversal.next(), 0);
+    }
+
+    @Test
+    public void testCountDuplicatePaths() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1");
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2");
+        Vertex a3 = this.sqlgGraph.addVertex(T.label, "A", "name", "a3");
+        Vertex a4 = this.sqlgGraph.addVertex(T.label, "A", "name", "a4");
+        a1.addEdge("aa", a2);
+        a2.addEdge("aa", a3);
+        a2.addEdge("aa", a4);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Long> traversal = this.sqlgGraph.traversal().V(a1).out().out().count();
+        printTraversalForm(traversal);
+        Assert.assertEquals(2, traversal.next(), 0);
+    }
+
+    @Test
+    public void testMaxDuplicatePaths() {
+        Vertex a1 = this.sqlgGraph.addVertex(T.label, "A", "name", "a1", "age", 1);
+        Vertex a2 = this.sqlgGraph.addVertex(T.label, "A", "name", "a2", "age", 2);
+        Vertex a3 = this.sqlgGraph.addVertex(T.label, "A", "name", "a3", "age", 3);
+        Vertex a4 = this.sqlgGraph.addVertex(T.label, "A", "name", "a4", "age", 4);
+        a1.addEdge("aa", a2);
+        a2.addEdge("aa", a3);
+        a2.addEdge("aa", a4);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Integer> traversal = this.sqlgGraph.traversal().V(a1).out().out().values("age").max();
+        printTraversalForm(traversal);
+        Assert.assertEquals(4, traversal.next(), 0);
     }
 
 }

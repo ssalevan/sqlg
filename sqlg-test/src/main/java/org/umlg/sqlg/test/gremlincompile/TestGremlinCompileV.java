@@ -25,7 +25,6 @@ public class TestGremlinCompileV extends BaseTest {
         }
     }
 
-
     @Test
     public void testSimpleOutOut() throws InterruptedException {
         Vertex a = this.sqlgGraph.addVertex(T.label, "A", "name", "a");

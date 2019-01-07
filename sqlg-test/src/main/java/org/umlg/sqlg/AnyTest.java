@@ -2,7 +2,7 @@ package org.umlg.sqlg;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
-import org.umlg.sqlg.test.reducing.TestReducingVertexStepUserSuppliedIds;
+import org.umlg.sqlg.test.gremlincompile.TestGremlinCompileE;
 
 /**
  * Date: 2014/07/16
@@ -10,11 +10,11 @@ import org.umlg.sqlg.test.reducing.TestReducingVertexStepUserSuppliedIds;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-//        TestSharding.class,
+        TestGremlinCompileE.class,
 //        TestReducing.class,
 //        TestReducingVertexStep.class,
 //        TestReducingUserSuppliedIds.class,
-        TestReducingVertexStepUserSuppliedIds.class
+//        TestReducingVertexStepUserSuppliedIds.class,
 //        TestSimpleJoinGremlin.class,
 //        TestMultipleIDQuery.class,
 //        TestSimpleVertexEdgeGremlin.class,

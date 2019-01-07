@@ -38,6 +38,7 @@ import org.umlg.sqlg.sql.parse.AndOrHasContainer;
 import org.umlg.sqlg.sql.parse.ReplacedStep;
 import org.umlg.sqlg.sql.parse.ReplacedStepTree;
 import org.umlg.sqlg.step.*;
+import org.umlg.sqlg.step.barrier.SqlgCountGlobalStep;
 import org.umlg.sqlg.step.barrier.SqlgLocalStepBarrier;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgTraversalUtil;
@@ -76,7 +77,8 @@ public abstract class BaseStrategy {
             MinGlobalStep.class,
             SumGlobalStep.class,
             MeanGlobalStep.class,
-            GroupStep.class
+            GroupStep.class,
+            CountGlobalStep.class
     );
     public static final String PATH_LABEL_SUFFIX = "P~~~";
     public static final String EMIT_LABEL_SUFFIX = "E~~~";
@@ -224,6 +226,11 @@ public abstract class BaseStrategy {
                 return handleMeanGlobalStep(this.currentReplacedStep, step);
             } else if (step instanceof GroupStep) {
                 return handleGroupStep(this.currentReplacedStep, step);
+            } else if (step instanceof CountGlobalStep) {
+                if (handleCountGlobalStep(this.currentReplacedStep, step)) {
+                    TraversalHelper.replaceStep((Step)step, new SqlgCountGlobalStep(this.traversal), this.traversal);
+                }
+                return false;
             } else {
                 throw new IllegalStateException("Unhandled step " + step.getClass().getName());
             }
@@ -244,6 +251,15 @@ public abstract class BaseStrategy {
     private boolean handleSumGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
         replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.sum, Collections.emptyList()));
         return false;
+    }
+
+    private boolean handleCountGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
+        if (step.getPreviousStep() instanceof PropertiesStep) {
+            return false;
+        } else {
+            replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.count, Collections.emptyList()));
+            return true;
+        }
     }
 
     private boolean handleMeanGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {

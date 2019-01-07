@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.umlg.sqlg.step.barrier.SqlgCountGlobalStep;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -215,7 +216,7 @@ public class ColumnList {
         StringBuilder sb = new StringBuilder();
         Set<Column> tmpColumns = new LinkedHashSet<>();
         if (!partOfDuplicateQuery && this.containsAggregate) {
-            this.columns.keySet().stream().filter(c -> !c.isID && !c.isForeignKey).forEach(tmpColumns::add);
+            this.columns.keySet().stream().filter(c -> (!c.isID && !c.isForeignKey)).forEach(tmpColumns::add);
         } else {
             tmpColumns.addAll(this.columns.keySet());
         }
@@ -235,30 +236,36 @@ public class ColumnList {
 
     @Override
     public String toString() {
-        return toOuterFromStatement("", false);
+        return toFromStatement(false);
     }
 
     @SuppressWarnings("Duplicates")
-    String toOuterFromStatement(String prefix, boolean stackContainsAggregate) {
+    String toOuterFromStatement(String prefix, boolean stackContainsAggregate, boolean isLast) {
         StringBuilder sb = new StringBuilder();
-        int i = 1;
         List<String> fromAliases = this.aliases.keySet().stream().filter(
-                (alias) -> !alias.endsWith(Topology.IN_VERTEX_COLUMN_END) && !alias.endsWith(Topology.OUT_VERTEX_COLUMN_END))
+                (alias) -> !this.aliases.get(alias).column.endsWith(Topology.IN_VERTEX_COLUMN_END) && !this.aliases.get(alias).column.endsWith(Topology.OUT_VERTEX_COLUMN_END))
                 .collect(Collectors.toList());
         boolean first = true;
         for (String alias : fromAliases) {
             Column c = this.aliases.get(alias);
-            if (stackContainsAggregate && !c.isID && !c.isIdentifier && c.aggregateFunction != null) {
+//            if (stackContainsAggregate && !c.isID && !c.isIdentifier && c.aggregateFunction != null && !c.aggregateFunction.equals(GraphTraversal.Symbols.count)) {
+            if (stackContainsAggregate && !c.isID && !c.isIdentifier && isLast) {
                 if (!first) {
                     sb.append(", ");
                 }
                 first = false;
-                sb.append(c.aggregateFunction);
-                sb.append("(");
+                if (c.aggregateFunction != null) {
+                    sb.append(c.aggregateFunction);
+                    sb.append("(");
+                }
                 sb.append(prefix);
                 sb.append(".");
                 sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
-                sb.append(")");
+                if (c.aggregateFunction != null) {
+                    sb.append(")");
+                    sb.append(" as ");
+                    sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
+                }
             } else if (!stackContainsAggregate) {
                 if (!first) {
                     sb.append(", ");
@@ -267,8 +274,10 @@ public class ColumnList {
                 sb.append(prefix);
                 sb.append(".");
                 sb.append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(alias));
+            } else if (c.aggregateFunction != null && c.aggregateFunction.equals(GraphTraversal.Symbols.count)) {
+                sb.append("\tcount(*) as " + SqlgCountGlobalStep.SQLG_COUNT);
+                break;
             }
-            i++;
         }
         return sb.toString();
     }
@@ -322,13 +331,18 @@ public class ColumnList {
         }
     }
 
-    int indexColumnsExcludeForeignKey(int startColumnIndex, boolean stackContainsAggregate) {
+    int indexColumnsExcludeForeignKey(int startColumnIndex, boolean stackContainsAggregate, boolean isLast) {
         int i = startColumnIndex;
         for (String alias : this.aliases.keySet()) {
             Column column = this.aliases.get(alias);
-            if (!alias.endsWith(Topology.IN_VERTEX_COLUMN_END) && !alias.endsWith(Topology.OUT_VERTEX_COLUMN_END) &&
-                    (!stackContainsAggregate || (!column.isID && !column.isIdentifier && column.aggregateFunction != null))) {
+            if (!column.column.endsWith(Topology.IN_VERTEX_COLUMN_END) && !column.column.endsWith(Topology.OUT_VERTEX_COLUMN_END) &&
+                    (!stackContainsAggregate || (!column.isID && !column.isIdentifier && isLast)) ||
+                    (column.aggregateFunction != null && column.aggregateFunction.equals(GraphTraversal.Symbols.count))) {
+
                 this.aliases.get(alias).columnIndex = i++;
+                if (column.aggregateFunction != null && column.aggregateFunction.equals(GraphTraversal.Symbols.count)) {
+                    break;
+                }
             }
         }
         return i;
@@ -372,7 +386,7 @@ public class ColumnList {
             if (!((isIdentifier && !isID) || (!isIdentifier && isID) || !isIdentifier && !isID)) {
                 System.out.println("");
             }
-            Preconditions.checkState((isIdentifier && !isID) || (!isIdentifier && isID)  || (!isIdentifier && !isID));
+            Preconditions.checkState((isIdentifier && !isID) || (!isIdentifier && isID) || (!isIdentifier && !isID));
         }
 
         @Override
@@ -478,16 +492,20 @@ public class ColumnList {
          * @param sb
          */
         void toFromStatement(StringBuilder sb, boolean partOfDuplicateQuery) {
-            if (!this.isID && !partOfDuplicateQuery && this.aggregateFunction != null) {
+            if ((!this.isID && !partOfDuplicateQuery && this.aggregateFunction != null)) {
                 sb.append(this.aggregateFunction.equals(GraphTraversal.Symbols.mean) ? "avg" : this.aggregateFunction);
                 sb.append("(");
             }
-            sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(schema));
-            sb.append(".");
-            sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(table));
-            sb.append(".");
-            sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(column));
-            if (!this.isID && !partOfDuplicateQuery && this.aggregateFunction != null) {
+            if (!partOfDuplicateQuery && this.aggregateFunction != null && this.aggregateFunction.equals(GraphTraversal.Symbols.count)) {
+                sb.append("*");
+            } else {
+                sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(schema));
+                sb.append(".");
+                sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(table));
+                sb.append(".");
+                sb.append(ColumnList.this.sqlgGraph.getSqlDialect().maybeWrapInQoutes(column));
+            }
+            if ((!this.isID && !partOfDuplicateQuery && this.aggregateFunction != null)) {
                 sb.append(")");
             }
         }

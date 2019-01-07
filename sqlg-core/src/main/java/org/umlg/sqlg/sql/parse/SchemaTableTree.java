@@ -16,6 +16,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.umlg.sqlg.predicate.Existence;
 import org.umlg.sqlg.predicate.FullText;
+import org.umlg.sqlg.step.barrier.SqlgCountGlobalStep;
 import org.umlg.sqlg.strategy.*;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.*;
@@ -602,6 +603,7 @@ public class SchemaTableTree {
             }
             lastOfPrevious = subQueryLinkedList.getLast();
         }
+        singlePathSql.append(constructOuterGroupByClause(sqlgGraph, subQueryLinkedLists, isDrop()));
         singlePathSql.append(constructOuterOrderByClause(sqlgGraph, subQueryLinkedLists));
         String result = "SELECT\n\t" + constructOuterFromClause(subQueryLinkedLists);
         return result + singlePathSql;
@@ -616,18 +618,19 @@ public class SchemaTableTree {
 
         boolean stackContainsAggregate = this.columnListStack.get(this.columnListStack.size() - 1).isContainsAggregate();
 
+        int count = 1;
         for (ColumnList columnList : this.columnListStack) {
             if (first && subQueryLinkedLists.get(i - 1).getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
                 result.append("a1.").append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes("index")).append(" as ").append(this.sqlgGraph.getSqlDialect().maybeWrapInQoutes("index")).append(",\n\r");
                 columnStartIndex++;
             }
             first = false;
-            String from = columnList.toOuterFromStatement("a" + countOuter++, stackContainsAggregate);
+            String from = columnList.toOuterFromStatement("a" + countOuter++, stackContainsAggregate, count == this.columnListStack.size());
             result.append(from);
             if (i++ < this.columnListStack.size() && !from.isEmpty()) {
                 result.append(", ");
             }
-            columnStartIndex = columnList.indexColumnsExcludeForeignKey(columnStartIndex, stackContainsAggregate);
+            columnStartIndex = columnList.indexColumnsExcludeForeignKey(columnStartIndex, stackContainsAggregate, count++ == this.columnListStack.size());
         }
         return result.toString();
     }
@@ -659,6 +662,22 @@ public class SchemaTableTree {
                 result.append(schemaTableTree.toRangeClause(sqlgGraph, mutableOrderBy));
             }
             countOuter++;
+        }
+        return result.toString();
+    }
+
+    private static String constructOuterGroupByClause(SqlgGraph sqlgGraph, List<LinkedList<SchemaTableTree>> subQueryLinkedLists, boolean dropStep) {
+        SchemaTableTree lastSchemaTableTree = subQueryLinkedLists.get(subQueryLinkedLists.size() - 1).getLast();
+        StringBuilder result = new StringBuilder();
+        if (lastSchemaTableTree.groupBy != null && !lastSchemaTableTree.groupBy.isEmpty() && !lastSchemaTableTree.groupBy.get(0).equals(T.label.getAccessor())) {
+            result.append(lastSchemaTableTree.toOuterGroupByClause(sqlgGraph, "a" + subQueryLinkedLists.size()));
+            if (!dropStep && subQueryLinkedLists.get(0).getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
+                result.append(",\n\t");
+                result.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("index"));
+            }
+        } else if (lastSchemaTableTree.hasAggregateFunction() && !dropStep && subQueryLinkedLists.get(0).getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
+            result.append("\nGROUP BY\n\t");
+            result.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("index"));
         }
         return result.toString();
     }
@@ -1108,19 +1127,17 @@ public class SchemaTableTree {
 
         //group by
         SchemaTableTree lastSchemaTableTree = distinctQueryStack.getLast();
-        if (lastSchemaTableTree.groupBy != null && !lastSchemaTableTree.groupBy.isEmpty() && !lastSchemaTableTree.groupBy.get(0).equals(T.label.getAccessor())) {
-            singlePathSql.append(lastSchemaTableTree.toGroupByClause(sqlgGraph));
-            if (!dropStep && lastOfPrevious == null && distinctQueryStack.getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
-                singlePathSql.append(",\n\t");
+        if (!partOfDuplicateQuery) {
+            if (lastSchemaTableTree.groupBy != null && !lastSchemaTableTree.groupBy.isEmpty() && !lastSchemaTableTree.groupBy.get(0).equals(T.label.getAccessor())) {
+                singlePathSql.append(lastSchemaTableTree.toGroupByClause(sqlgGraph));
+                if (!dropStep && lastOfPrevious == null && distinctQueryStack.getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
+                    singlePathSql.append(",\n\t");
+                    singlePathSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("index"));
+                }
+            } else if (lastSchemaTableTree.hasAggregateFunction() && !dropStep && lastOfPrevious == null && distinctQueryStack.getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
+                singlePathSql.append("\nGROUP BY\n\t");
                 singlePathSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("index"));
             }
-        } else if (lastSchemaTableTree.hasAggregateFunction() && !dropStep && lastOfPrevious == null && distinctQueryStack.getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
-            singlePathSql.append("\nGROUP BY\n\t");
-            singlePathSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("index"));
-        }
-
-        //if partOfDuplicateQuery then the order by clause is on the outer select
-        if (!partOfDuplicateQuery) {
 
             if (!distinctQueryStack.getLast().hasAggregateFunction() && !dropStep && lastOfPrevious == null && distinctQueryStack.getFirst().stepType != STEP_TYPE.GRAPH_STEP) {
                 singlePathSql.append("\nORDER BY\n\t");
@@ -1420,6 +1437,10 @@ public class SchemaTableTree {
                 result += " " + alias;
                 if (elementValueComparator.getValueComparator() == Order.incr) {
                     result += " ASC";
+                } else if (elementValueComparator.getValueComparator() == Order.asc) {
+                    result += " ASC";
+                } else if (elementValueComparator.getValueComparator() == Order.desc) {
+                    result += " DESC";
                 } else if (elementValueComparator.getValueComparator() == Order.decr) {
                     result += " DESC";
                 } else {
@@ -1564,6 +1585,26 @@ public class SchemaTableTree {
             }
         }
         return "";
+    }
+
+    private String toOuterGroupByClause(SqlgGraph sqlgGraph, String queryCounter) {
+        StringBuilder result  = new StringBuilder("\nGROUP BY\n\t");
+        for (String group : this.groupBy) {
+            String prefix = String.valueOf(this.stepDepth);
+            prefix += SchemaTableTree.ALIAS_SEPARATOR;
+            prefix += this.reducedLabels();
+            prefix += SchemaTableTree.ALIAS_SEPARATOR;
+            prefix += this.getSchemaTable().getSchema();
+            prefix += SchemaTableTree.ALIAS_SEPARATOR;
+            prefix += this.getSchemaTable().getTable();
+            prefix += SchemaTableTree.ALIAS_SEPARATOR;
+            prefix += group;
+            String alias = sqlgGraph.getSqlDialect().maybeWrapInQoutes(this.getColumnNameAliasMap().get(prefix));
+            result.append(queryCounter);
+            result.append(".");
+            result.append(alias);
+        }
+        return result.toString();
     }
 
     private String toGroupByClause(SqlgGraph sqlgGraph) {
@@ -1715,10 +1756,18 @@ public class SchemaTableTree {
         } else if (previousSchemaTableTree != null && firstSchemaTable.getTable().startsWith(VERTEX_PREFIX)) {
             //if user defined identifiers then the regular properties make up the ids.
             if (firstSchemaTableTree.hasIDPrimaryKey) {
-                columnList.add(firstSchemaTable, Topology.ID, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculatedAliasId());
+                if (firstSchemaTableTree.getAggregateFunction() == null) {
+                    columnList.add(firstSchemaTable, Topology.ID, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculatedAliasId());
+                } else {
+                    columnList.add(firstSchemaTable, Topology.ID, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculatedAliasId(), firstSchemaTableTree.getAggregateFunction().getLeft());
+                }
             } else {
                 for (String identifier : firstSchemaTableTree.getIdentifiers()) {
-                    columnList.add(firstSchemaTable, identifier, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculateAliasPropertyName(identifier));
+                    if (firstSchemaTableTree.getAggregateFunction() == null) {
+                        columnList.add(firstSchemaTable, identifier, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculateAliasPropertyName(identifier));
+                    } else {
+                        columnList.add(firstSchemaTable, identifier, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculateAliasPropertyName(identifier), firstSchemaTableTree.getAggregateFunction().getLeft());
+                    }
                 }
             }
             printedId = firstSchemaTable == lastSchemaTable;
@@ -1810,17 +1859,23 @@ public class SchemaTableTree {
         //The last schemaTableTree in the call stack has no nextSchemaTableTree.
         //This last element's properties need to be returned, including all labeled properties for this path
         if (nextSchemaTableTree == null) {
-            if (!printedId && lastSchemaTableTree.hasIDPrimaryKey) {
-                printIDFromClauseFor(lastSchemaTableTree, columnList);
-            }
-            printFromClauseFor(lastSchemaTableTree, columnList, partOfDuplicateQuery);
+            if (partOfDuplicateQuery || !(lastSchemaTableTree.getAggregateFunction() != null && lastSchemaTableTree.getAggregateFunction().getLeft().equals(GraphTraversal.Symbols.count))) {
+                if (!printedId && lastSchemaTableTree.hasIDPrimaryKey && lastSchemaTableTree.getAggregateFunction() == null) {
+                    printIDFromClauseFor(lastSchemaTableTree, columnList);
+                }
+                printFromClauseFor(lastSchemaTableTree, columnList, partOfDuplicateQuery);
 
-            if (lastSchemaTableTree.getSchemaTable().isEdgeTable()) {
-                printEdgeInOutVertexIdFromClauseFor(sqlgGraph, firstSchemaTableTree, lastSchemaTableTree, columnList);
-            }
+                if (lastSchemaTableTree.getSchemaTable().isEdgeTable()) {
+                    printEdgeInOutVertexIdFromClauseFor(sqlgGraph, firstSchemaTableTree, lastSchemaTableTree, columnList);
+                }
 
-            constructAllLabeledFromClause(distinctQueryStack, columnList, partOfDuplicateQuery);
-            constructEmitFromClause(distinctQueryStack, columnList);
+                constructAllLabeledFromClause(distinctQueryStack, columnList, partOfDuplicateQuery);
+                constructEmitFromClause(distinctQueryStack, columnList);
+            } else {
+                if (lastSchemaTableTree.getAggregateFunction() != null && lastSchemaTableTree.getAggregateFunction().getLeft().equals(GraphTraversal.Symbols.count)) {
+                    columnList.add(lastSchemaTableTree, "*", "cnt", "count");
+                }
+            }
         }
         return columnList.toFromStatement(partOfDuplicateQuery);
     }
@@ -1828,7 +1883,9 @@ public class SchemaTableTree {
     private static void constructAllLabeledFromClause(LinkedList<SchemaTableTree> distinctQueryStack, ColumnList cols, boolean partOfDuplicateQuery) {
         List<SchemaTableTree> labeled = distinctQueryStack.stream().filter(d -> !d.getLabels().isEmpty()).collect(Collectors.toList());
         for (SchemaTableTree schemaTableTree : labeled) {
-            if (schemaTableTree.hasIDPrimaryKey) {
+            if (schemaTableTree.hasIDPrimaryKey &&
+                    !((schemaTableTree.getAggregateFunction() != null && schemaTableTree.getAggregateFunction().getLeft().equals(GraphTraversal.Symbols.count)))) {
+
                 printLabeledIDFromClauseFor(schemaTableTree, cols);
             }
             printLabeledFromClauseFor(schemaTableTree, cols, partOfDuplicateQuery);
@@ -1906,34 +1963,38 @@ public class SchemaTableTree {
             }
         }
         for (Map.Entry<String, PropertyType> propertyTypeMapEntry : propertyTypeMap.entrySet()) {
-            if (!identifiers.contains(propertyTypeMapEntry.getKey())) {
-                if (lastSchemaTableTree.shouldSelectProperty(propertyTypeMapEntry.getKey())) {
 
-                    String alias = cols.getAlias(lastSchemaTableTree, propertyTypeMapEntry.getKey());
+            String key = propertyTypeMapEntry.getKey();
+            PropertyType propertyType = propertyTypeMapEntry.getValue();
+
+            if (!identifiers.contains(key)) {
+                if (lastSchemaTableTree.shouldSelectProperty(key)) {
+
+                    String alias = cols.getAlias(lastSchemaTableTree, key);
                     if (alias == null) {
-                        alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey());
+                        alias = lastSchemaTableTree.calculateAliasPropertyName(key);
                     }
 
                     if (lastSchemaTableTree.aggregateFunction == null) {
-                        cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias, null);
+                        cols.add(lastSchemaTableTree, key, alias, null);
                     } else {
                         if (lastSchemaTableTree.getAggregateFunction().getRight().isEmpty() ||
-                                lastSchemaTableTree.getAggregateFunction().getRight().contains(propertyTypeMapEntry.getKey())) {
+                                lastSchemaTableTree.getAggregateFunction().getRight().contains(key)) {
 
                             cols.add(
                                     lastSchemaTableTree,
-                                    propertyTypeMapEntry.getKey(),
+                                    key,
                                     alias,
                                     lastSchemaTableTree.aggregateFunction.getLeft()
                             );
 
                         } else {
-                            cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias, null);
+                            cols.add(lastSchemaTableTree, key, alias, null);
                         }
                     }
-                    for (String postFix : propertyTypeMapEntry.getValue().getPostFixes()) {
-                        alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey() + postFix);
-                        cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey() + postFix, alias);
+                    for (String postFix : propertyType.getPostFixes()) {
+                        alias = lastSchemaTableTree.calculateAliasPropertyName(key + postFix);
+                        cols.add(lastSchemaTableTree, key + postFix, alias);
                     }
                 }
             }
@@ -2708,9 +2769,14 @@ public class SchemaTableTree {
                     if (!column.isID() && !column.isForeignKey()) {
                         if (column.getAggregateFunction() != null && column.getAggregateFunction().equals(GraphTraversal.Symbols.mean)) {
                             sqlgElement.loadProperty(resultSet, propertyName, column.getColumnIndex(), getColumnNameAliasMap(), this.stepDepth, PropertyType.DOUBLE);
+                        } else if (column.getAggregateFunction() != null && column.getAggregateFunction().equals(GraphTraversal.Symbols.count)) {
+                            sqlgElement.loadProperty(resultSet, SqlgCountGlobalStep.SQLG_COUNT, column.getColumnIndex(), getColumnNameAliasMap(), this.stepDepth, PropertyType.LONG);
                         } else {
                             sqlgElement.loadProperty(resultSet, propertyName, column.getColumnIndex(), getColumnNameAliasMap(), this.stepDepth, propertyType);
                         }
+                    } else if (column.getAggregateFunction() != null && column.getAggregateFunction().equals(GraphTraversal.Symbols.count)) {
+                        sqlgElement.loadProperty(resultSet, SqlgCountGlobalStep.SQLG_COUNT, column.getColumnIndex(), getColumnNameAliasMap(), this.stepDepth, PropertyType.LONG);
+                        break;
                     }
                 }
             }
